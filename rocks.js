@@ -108,14 +108,22 @@ function simulate(elapsed, objects, ship) {
 		}
 	}
 	if (held[keys.left]) {
-		ship.vphi -= 0.1;
-	}
-	if (held[keys.right]) {
-		ship.vphi += 0.1;
+		ship.vphi = -4;
+	} else if (held[keys.right]) {
+		ship.vphi = 4;
+	} else {
+		ship.vphi = 0;
 	}
 	if (held[keys.up]) {
 		//thrust
-		ship.vy+=0.1;
+		var dy = -Math.cos(ship.phi);
+		var dx = Math.sin(ship.phi);
+		ship.vy+=(dy*elapsed/5);
+		ship.vx+=(dx*elapsed/5);
+	} else {
+		// "friction" isn't realistic, but the original did it...
+		ship.vx *= 0.95;
+		ship.vy *= 0.95;
 	}
 	if (held[keys.down]) {
 		// shields up
@@ -126,7 +134,7 @@ function simulate(elapsed, objects, ship) {
 }
 
 var rocks=[];
-var numrocks=500;
+var numrocks=50;
 var max_r = Math.random()*Math.PI*2;
 for (var n=0; n < numrocks; n++) {
 	rocks.push({
@@ -150,6 +158,7 @@ var myship={
 	vphi: 0,
 	shape: ship
 };
+rocks.push(myship);
 var framecount=0;
 var lastreport=0;
 function frame(timestamp) {
