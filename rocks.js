@@ -4,52 +4,36 @@
   window.requestAnimationFrame = requestAnimationFrame;
 })();
 
-var ship = [
-	[ 0, -4],
-	[ 3,  4],
-	[ 0,  3],
-	[-3,  4],
-	[ 0, -4]
-];
+var keys={
+	left: 37,
+	up: 38,
+	right: 39,
+	down: 40,
+	space: 32
+};
+var held=[];
+function keydown(event) {
+	//console.log("keydown, "+event.keyCode);
+	held[event.keyCode]=true;
+}
 
-var rock = [
-	[ 0, -5],
-	[ 2, -4],
-	[ 1,  1],
-	[ 4,  0],
-	[ 2,  4],
-	[ 0,  4],
-	[-1,  2],
-	[-3,  3],
-	[-4,  0],
-	[-2, -1],
-	[-4, -3],
-	[-2, -4],
-	[-1, -3],
-	[ 0, -5],
-];
+function keyup(event) {
+	held[event.keyCode]=false;
+	//console.log("keyup, "+event.keyCode);
+}
 
-var bullet = [
-	{},
-	{},
-	{},
-	{},
-	{},
-	{},
-];
+document.onkeydown=keydown;
+document.onkeyup=keyup;
 
-var thrust = [
-	{},
-	{},
-	{},
-	{},
-	{},
-	{},
-];
-
-var ctx = document.getElementById("game").getContext('2d');
+var canvas = document.getElementById("game");
+var ctx = canvas.getContext('2d');
+// This is supposed to disable some anti-aliasing, but doesn't seem to work for lines
+ctx.webkitImageSmoothingEnabled = false;
+ctx.mozImageSmoothingEnabled = false;
+var width = canvas.width;
+var height = canvas.height;
 function clear_canvas() {
-	ctx.fillRect(0,0,320,320);
+	ctx.fillRect(0, 0, width, height);
 }
 
 function draw_poly(shape) {
@@ -59,58 +43,95 @@ function draw_poly(shape) {
 	for (var i=1; i < n; i++) {
 		ctx.lineTo(shape[i][0], shape[i][1]);
 	}
-	ctx.closePath();
 	ctx.stroke();
+	ctx.fill();
 }
 
 function draw_object(o) {
 	ctx.save();
 	ctx.translate(o.x, o.y);
 	ctx.rotate(o.phi);
-	ctx.scale(o.scale, o.scale);
+	//ctx.scale(o.scale, o.scale); //scale seems pretty useless: it scales the size of the lines, too
 	draw_poly(o.shape);
 	ctx.restore();
 }
 
-function draw_ship(x, y) {
-	ctx.strokeStyle="white";
-	draw_object({
-		x: x,
-		y: y,
-		shape: ship,
-		scale: 1.0
-	});
+function draw_ship(s) {
+	ctx.save();
+	ctx.strokeStyle="lightblue";
+	draw_object(s);
+	if (held[keys.up]) {
+		ctx.strokeStyle="red";
+		draw_object({
+			x: s.x,
+			y: s.y,
+			shape: thrust
+		});
+	}
+	ctx.restore();
+}
+
+function draw_score(score) {
+	ctx.save();
+	ctx.strokeStyle="green";
+	var places = 6;
+	var spacing = 6;
+	for (var place=0; place < places; place++) {
+		draw_object({
+			x: width - spacing * (place+1),
+			y: 16,
+			shape:font[3]
+		});
+	}
+	ctx.restore();
 }
 
 var lasttime;
 
-function simulate(elapsed, objects) {
+function simulate(elapsed, objects, ship) {
 	for (var i=0; i < objects.length; i++) {
 		var o = objects[i];
 		o.x = o.x + o.vx * elapsed / 1000;
 		o.y = o.y + o.vy * elapsed / 1000;
 		o.phi = o.phi + o.vphi *elapsed / 1000;
-		if (o.x > 320) {
-		    o.x -= 320;
+		if (o.x > width) {
+		    o.x -= width;
 		}
-		if (o.y > 320) {
-	        o.y -= 320;
+		if (o.y > height) {
+	        o.y -= height;
 		}
 		if (o.x < 0) {
-		    o.x += 320;
+		    o.x += width;
 		}
 		if (o.y < 0) {
-	        o.y += 320;
+	        o.y += height;
 		}
 	}
+	if (held[keys.left]) {
+		ship.vphi -= 0.1;
+	}
+	if (held[keys.right]) {
+		ship.vphi += 0.1;
+	}
+	if (held[keys.up]) {
+		//thrust
+		ship.vy+=0.1;
+	}
+	if (held[keys.down]) {
+		// shields up
+	}	
+	if (held[keys.space]) {
+		// spawn a bullet
+	}	
 }
 
 var rocks=[];
+var numrocks=500;
 var max_r = Math.random()*Math.PI*2;
-for (var n=0; n < 20; n++) {
+for (var n=0; n < numrocks; n++) {
 	rocks.push({
-		x: Math.random()*320,
-		y: Math.random()*320,
+		x: Math.random()*width,
+		y: Math.random()*height,
 		vx: Math.random()*16-8,
 		vy: Math.random()*16-8,
 		phi: Math.random()*Math.PI*2,
@@ -120,21 +141,39 @@ for (var n=0; n < 20; n++) {
 	});
 }
 console.dir(rocks);
-
+var myship={
+	x: width/2,
+	y: height/2,
+	phi: 0,
+	vx: 0,
+	vy: 0,
+	vphi: 0,
+	shape: ship
+};
+var framecount=0;
+var lastreport=0;
 function frame(timestamp) {
 	var elapsed;
 	if (lasttime === undefined) {
 		elapsed = 0;
+		lastreport = timestamp;
 	} else {
 		elapsed = (timestamp - lasttime);
 	}
-	simulate(elapsed, rocks);
+	simulate(elapsed, rocks, myship);
 	clear_canvas();
-	draw_ship(160, 160);
+	draw_ship(myship);
+	draw_score();
 	for (var i=0; i < rocks.length; i++) {
+		ctx.strokeStyle="lightgray";
 		draw_object(rocks[i]);
 	}
 	lasttime = timestamp;
+	if (framecount++ > 60) {
+		console.log(framecount / ((timestamp-lastreport)/1000) + " FPS");
+		lastreport = timestamp;
+		framecount=0;
+	}
 	requestAnimationFrame(frame);
 }
 
