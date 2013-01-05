@@ -128,6 +128,19 @@ function draw_frame_counter(fps) {
 	ctx.restore();
 }
 
+function draw_lives() {
+	ctx.save();
+	for (var i=0; i < lives; i++) {
+		draw_object({
+			x: (i+1) * 10,
+			y: 16,
+			strokeStyle: "green",
+			shape: ship
+		});
+	}
+	ctx.restore();
+}
+
 function play_bullet_sound() {
 	var beep = audio.createOscillator();
 	beep.connect(audio.destination);
@@ -153,7 +166,7 @@ function spawn_bullet(ship) {
 		shape: bullet,
 		filled: true,
 		fillStyle: "white",
-		lineStyle: "white",
+		strokeStyle: "white",
 		scale: 1,
 		removeAfter: (performance.webkitNow()+1000*bullet_life),
 		onRemoved: function() {
@@ -227,7 +240,9 @@ function simulate(elapsed, objects, ship) {
 }
 
 var rocks=[];
+var bullets=[];
 var numrocks=50;
+var lives = 3;
 var max_r = Math.random()*Math.PI*2;
 for (var n=0; n < numrocks; n++) {
 	rocks.push({
@@ -240,14 +255,13 @@ for (var n=0; n < numrocks; n++) {
 		shape: rock,
 		filled: true,
 		fillStyle: "gray",
-		lineStyle: "darkgray",
+		strokeStyle: "black",
 		scale: 2,
 		onRemoved: function() {
 			num_rocks--;
 		}
 	});
 }
-//console.dir(rocks);
 var myship={
 	x: width/2,
 	y: height/2,
@@ -279,6 +293,7 @@ function frame(timestamp) {
 		draw_object(rocks[i]);
 	}
 	draw_score(score, 10);
+	draw_lives();
 	draw_frame_counter(fps);
 	lasttime = timestamp;
 	if (framecount++ > 60) {
