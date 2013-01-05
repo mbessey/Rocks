@@ -163,8 +163,9 @@ function spawn_bullet(ship) {
 
 var lasttime;
 var bulletTime = -1;
-var bullet_interval = 0.25;
+var bullet_interval = 0.1;
 var num_bullets = 0;
+var max_bullets = 10;
 function simulate(elapsed, objects, ship) {
 	var dead = [];
 	for (var i=0; i < objects.length; i++) {
@@ -214,14 +215,14 @@ function simulate(elapsed, objects, ship) {
 	if (held[keys.down]) {
 		// shields up
 	}	
-	if ((pressed[keys.space] || held[keys.space]) && performance.webkitNow() > bulletTime && num_bullets < 5) {
-		pressed[keys.space]=false;
+	if ((pressed[keys.space] || held[keys.space]) && performance.webkitNow() > bulletTime && num_bullets < max_bullets) {
 		// spawn a bullet
 		bulletTime=performance.webkitNow() + (1000 * bullet_interval);
 		play_bullet_sound();
 		num_bullets++;
 		spawn_bullet(ship);
 	}	
+	pressed[keys.space]=false;
 }
 
 var rocks=[];
