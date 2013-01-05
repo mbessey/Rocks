@@ -141,11 +141,23 @@ function draw_lives() {
 	ctx.restore();
 }
 
-function play_bullet_sound() {
+function play_beep(freq, duration) {
 	var beep = audio.createOscillator();
-	beep.connect(audio.destination);
+	beep.frequency.setValueAtTime(freq, audio.currentTime);
+	beep.frequency.linearRampToValueAtTime(freq*2, audio.currentTime+duration/2);
+	beep.frequency.linearRampToValueAtTime(freq, audio.currentTime+duration);
+	var  vol = audio.createGainNode();
+	vol.gain.setValueAtTime(0, audio.currentTime);
+	vol.gain.linearRampToValueAtTime(1, audio.currentTime+duration/2);
+	vol.gain.linearRampToValueAtTime(0 , audio.currentTime+duration);
+	beep.connect(vol);
+	vol.connect(audio.destination);
 	beep.noteOn(0);
-	beep.noteOff(audio.currentTime+0.1);
+	beep.noteOff(audio.currentTime+duration);
+}
+
+function play_bullet_sound() {
+	play_beep(220, 0.1);
 }
 
 var bullet_life = 3;
@@ -156,7 +168,7 @@ function spawn_bullet(ship) {
 	var dx = Math.sin(ship.phi);
 	var x = ship.x + dx * distance_from_ship;
 	var y = ship.y + dy * distance_from_ship;
-	rocks.push({
+	bullets.push({
 		x: x,
 		y: y,
 		vx: ship.vx + dx * bullet_v,
@@ -176,12 +188,7 @@ function spawn_bullet(ship) {
 	play_bullet_sound();
 }
 
-var lasttime;
-var bulletTime = -1;
-var bullet_interval = 0.1;
-var num_bullets = 0;
-var max_bullets = 10;
-function simulate(elapsed, objects, ship) {
+function move(elapsed, objects) {
 	var dead = [];
 	for (var i=0; i < objects.length; i++) {
 		var o = objects[i];
@@ -208,6 +215,33 @@ function simulate(elapsed, objects, ship) {
 	// remove dead objects
 	for (i = 0; i < dead.length; i++) {
 		objects.splice(dead[i], 1);
+	}
+}
+
+var lasttime;
+var bulletTime = -1;
+var bullet_interval = 0.1;
+var num_bullets = 0;
+var max_bullets = 10;
+function simulate(elapsed, rocks, ship, bullets) {
+	move(elapsed, rocks);
+	move(elapsed, [ship]);
+	move(elapsed, bullets);
+	var hit = hit_test(ship, rocks);
+	if (hit) {
+		//play_beep(110, 0.1);
+	}
+	for (var i=0; i < bullets.length; i++ ) {
+		var bullet = bullets[i];
+		hit = hit_test(bullet, rocks);
+		if (hit) {
+			score += 10;
+			play_beep(110, 0.1);
+			bullets.splice(i,1);
+			bullet.onRemoved();
+			rocks.splice(rocks.indexOf(hit), 1);
+			hit.onRemoved();
+		}
 	}
 	if (held[keys.left]) {
 		ship.vphi = -4;
@@ -241,10 +275,10 @@ function simulate(elapsed, objects, ship) {
 
 var rocks=[];
 var bullets=[];
-var numrocks=50;
+var num_rocks=50;
 var lives = 3;
-var max_r = Math.random()*Math.PI*2;
-for (var n=0; n < numrocks; n++) {
+var max_r = Math.random()*Math.PI*3;
+for (var n=0; n < num_rocks; n++) {
 	rocks.push({
 		x: Math.random()*width,
 		y: Math.random()*height,
@@ -275,7 +309,7 @@ var myship={
 	strokeStyle: "darkyellow",
 	scale: 2
 };
-rocks.push(myship);
+//rocks.push(myship);
 var fps = 0;
 var framecount=0;
 var lastreport=0;
@@ -287,11 +321,15 @@ function frame(timestamp) {
 	} else {
 		elapsed = (timestamp - lasttime);
 	}
-	simulate(elapsed, rocks, myship);
+	simulate(elapsed, rocks, myship, bullets);
 	clear_canvas();
 	for (var i=0; i < rocks.length; i++) {
 		draw_object(rocks[i]);
 	}
+	for (var i=0; i < bullets.length; i++) {
+		draw_object(bullets[i]);
+	}
+	draw_object(myship);
 	draw_score(score, 10);
 	draw_lives();
 	draw_frame_counter(fps);
@@ -308,8 +346,13 @@ function frame(timestamp) {
 function hit_test(needle, haystack) {
 	var i;
 	for (i=0; i < haystack.length; i++) {
-		
-	} 
+		target = haystack[i];
+		var dx = needle.x-target.x;
+		var dy = needle.y-target.y;
+		if (dx*dx+dy*dy < 64) {
+			return target;
+		}
+	}
 }
 
 // start animating

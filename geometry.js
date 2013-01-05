@@ -6,6 +6,10 @@ var ship = [
 	[ 0, -4]
 ];
 
+var big_rock = [
+	[]
+];
+
 var rock = [
 	[ 0, -5],
 	[ 2, -4],
