@@ -188,6 +188,35 @@ function spawn_bullet(ship) {
 	play_bullet_sound();
 }
 
+function spawn_debris(ship) {
+	var bullet_v = 100;
+	for (var i=0; i< 4; i++) {
+		var phi = Math.random()*Math.PI*2;
+		var dy = -Math.cos(phi);
+		var dx = Math.sin(phi);
+		var x = ship.x;
+		var y = ship.y;
+		bullets.push({
+			x: x,
+			y: y,
+			vx: ship.vx + dx * bullet_v,
+			vy: ship.vy + dy * bullet_v,
+			phi: phi,
+			vphi: 0,
+			shape: bullet,
+			filled: true,
+			fillStyle: "yellow",
+			strokeStyle: "yellow",
+			scale: 1,
+			removeAfter: (lasttime+1000),
+			onRemoved: function() {
+				num_bullets--;
+			}
+		});
+	}
+	//play_bullet_sound();
+}
+
 function move(elapsed, objects) {
 	var dead = [];
 	for (var i=0; i < objects.length; i++) {
@@ -227,9 +256,19 @@ function simulate(elapsed, rocks, ship, bullets) {
 	move(elapsed, rocks);
 	move(elapsed, [ship]);
 	move(elapsed, bullets);
-	var hit = hit_test(ship, rocks);
-	if (hit) {
-		//play_beep(110, 0.1);
+	var hit;
+	if (!ship.dead) {
+		hit = hit_test(ship, rocks);
+		if (hit) {
+			lives--;
+			death();
+			rocks.splice(rocks.indexOf(hit), 1);
+			hit.onRemoved();
+		}
+	} else {
+		if (lasttime > ship.returnAfter) {
+			ship.dead=false;
+		}
 	}
 	for (var i=0; i < bullets.length; i++ ) {
 		var bullet = bullets[i];
@@ -329,7 +368,9 @@ function frame(timestamp) {
 	for (var i=0; i < bullets.length; i++) {
 		draw_object(bullets[i]);
 	}
-	draw_object(myship);
+	if (!myship.dead) {
+		draw_object(myship);
+	}
 	draw_score(score, 10);
 	draw_lives();
 	draw_frame_counter(fps);
@@ -353,6 +394,15 @@ function hit_test(needle, haystack) {
 			return target;
 		}
 	}
+}
+
+function death() {
+	myship.dead=true;
+	myship.vx=0;
+	myship.vy=0;
+	myship.vphi=0;
+	spawn_debris(myship);
+	myship.returnAfter=lasttime+1500; // return after 0.5 second
 }
 
 // start animating
