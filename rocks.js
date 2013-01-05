@@ -390,7 +390,7 @@ function hit_test(needle, haystack) {
 		target = haystack[i];
 		var dx = needle.x-target.x;
 		var dy = needle.y-target.y;
-		if (dx*dx+dy*dy < 64) {
+		if (dx*dx+dy*dy < 80) {
 			return target;
 		}
 	}
