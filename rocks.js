@@ -168,7 +168,7 @@ function spawn_bullet(ship) {
 		fillStyle: "white",
 		strokeStyle: "white",
 		scale: 1,
-		removeAfter: (performance.webkitNow()+1000*bullet_life),
+		removeAfter: (lasttime+1000*bullet_life),
 		onRemoved: function() {
 			num_bullets--;
 		}
@@ -200,7 +200,7 @@ function simulate(elapsed, objects, ship) {
 		if (o.y < 0) {
 	        o.y += height;
 		}
-		if (o.removeAfter && o.removeAfter < performance.webkitNow()) {
+		if (o.removeAfter && o.removeAfter < lasttime) {
 			o.onRemoved();
 			dead.push(i);
 		}
@@ -230,9 +230,9 @@ function simulate(elapsed, objects, ship) {
 	if (held[keys.down]) {
 		// shields up
 	}	
-	if ((pressed[keys.space] || held[keys.space]) && performance.webkitNow() > bulletTime && num_bullets < max_bullets) {
+	if ((pressed[keys.space] || held[keys.space]) && lasttime > bulletTime && num_bullets < max_bullets) {
 		// spawn a bullet
-		bulletTime=performance.webkitNow() + (1000 * bullet_interval);
+		bulletTime = lasttime + (1000 * bullet_interval);
 		num_bullets++;
 		spawn_bullet(ship);
 	}	
@@ -312,4 +312,5 @@ function hit_test(needle, haystack) {
 	} 
 }
 
+// start animating
 requestAnimationFrame(frame);
