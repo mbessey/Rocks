@@ -134,6 +134,7 @@ function play_bullet_sound() {
 	beep.noteOff(audio.currentTime+0.1);
 }
 
+var bullet_life = 2;
 function spawn_bullet(ship) {
 	var bullet_v = 100;
 	var distance_from_ship=6;
@@ -152,13 +153,20 @@ function spawn_bullet(ship) {
 		filled: true,
 		fillStyle: "white",
 		lineStyle: "white",
-		scale: 1
+		scale: 1,
+		removeAfter: (performance.webkitNow()+1000*bullet_life),
+		removed: function() {
+			num_bullets--;
+		}
 	});
 }
 
 var lasttime;
-var bulletTime=-1;
+var bulletTime = -1;
+var bullet_interval = 0.25;
+var num_bullets = 0;
 function simulate(elapsed, objects, ship) {
+	var dead = [];
 	for (var i=0; i < objects.length; i++) {
 		var o = objects[i];
 		o.x = o.x + o.vx * elapsed / 1000;
@@ -176,6 +184,14 @@ function simulate(elapsed, objects, ship) {
 		if (o.y < 0) {
 	        o.y += height;
 		}
+		if (o.removeAfter && o.removeAfter < performance.webkitNow()) {
+			o.removed();
+			dead.push(i);
+		}
+	}
+	// remove dead objects
+	for (i = 0; i < dead.length; i++) {
+		objects.splice(dead[i], 1);
 	}
 	if (held[keys.left]) {
 		ship.vphi = -4;
@@ -198,11 +214,12 @@ function simulate(elapsed, objects, ship) {
 	if (held[keys.down]) {
 		// shields up
 	}	
-	if ((pressed[keys.space] || held[keys.space]) && audio.currentTime > bulletTime) {
+	if ((pressed[keys.space] || held[keys.space]) && performance.webkitNow() > bulletTime && num_bullets < 5) {
 		pressed[keys.space]=false;
 		// spawn a bullet
-		bulletTime=audio.currentTime + 0.25;
+		bulletTime=performance.webkitNow() + (1000 * bullet_interval);
 		play_bullet_sound();
+		num_bullets++;
 		spawn_bullet(ship);
 	}	
 }
