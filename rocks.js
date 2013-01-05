@@ -53,6 +53,7 @@ ctx.mozImageSmoothingEnabled = false;
 var width = canvas.width;
 var height = canvas.height;
 var audio = new AudioContext();
+var score = 0;
 
 function clear_canvas() {
 	ctx.fillRect(0, 0, width, height);
@@ -134,7 +135,7 @@ function play_bullet_sound() {
 	beep.noteOff(audio.currentTime+0.1);
 }
 
-var bullet_life = 2;
+var bullet_life = 3;
 function spawn_bullet(ship) {
 	var bullet_v = 100;
 	var distance_from_ship=6;
@@ -155,10 +156,11 @@ function spawn_bullet(ship) {
 		lineStyle: "white",
 		scale: 1,
 		removeAfter: (performance.webkitNow()+1000*bullet_life),
-		removed: function() {
+		onRemoved: function() {
 			num_bullets--;
 		}
 	});
+	play_bullet_sound();
 }
 
 var lasttime;
@@ -186,7 +188,7 @@ function simulate(elapsed, objects, ship) {
 	        o.y += height;
 		}
 		if (o.removeAfter && o.removeAfter < performance.webkitNow()) {
-			o.removed();
+			o.onRemoved();
 			dead.push(i);
 		}
 	}
@@ -208,9 +210,9 @@ function simulate(elapsed, objects, ship) {
 		ship.vy+=(dy*elapsed/5);
 		ship.vx+=(dx*elapsed/5);
 	} else {
-		// "friction" isn't realistic, but the original did it...
-		ship.vx *= 0.95;
-		ship.vy *= 0.95;
+		// "friction" in space isn't realistic, but the original did it, so...
+		ship.vx *= 0.99;
+		ship.vy *= 0.99;
 	}
 	if (held[keys.down]) {
 		// shields up
@@ -218,7 +220,6 @@ function simulate(elapsed, objects, ship) {
 	if ((pressed[keys.space] || held[keys.space]) && performance.webkitNow() > bulletTime && num_bullets < max_bullets) {
 		// spawn a bullet
 		bulletTime=performance.webkitNow() + (1000 * bullet_interval);
-		play_bullet_sound();
 		num_bullets++;
 		spawn_bullet(ship);
 	}	
@@ -240,7 +241,10 @@ for (var n=0; n < numrocks; n++) {
 		filled: true,
 		fillStyle: "gray",
 		lineStyle: "darkgray",
-		scale: 2
+		scale: 2,
+		onRemoved: function() {
+			num_rocks--;
+		}
 	});
 }
 //console.dir(rocks);
@@ -274,13 +278,14 @@ function frame(timestamp) {
 	for (var i=0; i < rocks.length; i++) {
 		draw_object(rocks[i]);
 	}
-	draw_score(9876543210, 10);
+	draw_score(score, 10);
 	draw_frame_counter(fps);
 	lasttime = timestamp;
 	if (framecount++ > 60) {
 		fps = framecount / ((timestamp-lastreport)/1000);
 		lastreport = timestamp;
 		framecount=0;
+		score+=1;
 	}
 	requestAnimationFrame(frame);
 }
