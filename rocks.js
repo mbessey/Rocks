@@ -190,7 +190,7 @@ function spawn_bullet(ship) {
 
 function spawn_debris(ship) {
 	var bullet_v = 100;
-	for (var i=0; i< 4; i++) {
+	for (var i=0; i < 5; i++) {
 		var phi = Math.random()*Math.PI*2;
 		var dy = -Math.cos(phi);
 		var dx = Math.sin(phi);
@@ -251,7 +251,7 @@ var lasttime;
 var bulletTime = -1;
 var bullet_interval = 0.1;
 var num_bullets = 0;
-var max_bullets = 10;
+var max_bullets = 20;
 function simulate(elapsed, rocks, ship, bullets) {
 	move(elapsed, rocks);
 	move(elapsed, [ship]);
