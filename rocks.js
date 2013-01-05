@@ -1,7 +1,17 @@
+/* 
+	rocks.js
+	Main game code
+*/
+
+
 (function() {
   var requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame ||
                               window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
   window.requestAnimationFrame = requestAnimationFrame;
+})();
+(function() {
+  var audioContext = window.AudioContext || window.webkitAudioContext || window.mozAudioContext || window.msAudioContext;
+  window.AudioContext = audioContext;
 })();
 
 var keys={
@@ -12,14 +22,24 @@ var keys={
 	space: 32
 };
 var held=[];
+var pressed=[];
 function keydown(event) {
 	//console.log("keydown, "+event.keyCode);
-	held[event.keyCode]=true;
+	if (event.keyCode == 37 || event.keyCode == 38 || event.keyCode == 39 || event.keyCode == 40 || event.keyCode == 32 ) {
+		held[event.keyCode]=true;
+		pressed[event.keyCode]=true;
+    	event.preventDefault(); // Prevent the default action
+		return true;
+	}
 }
 
 function keyup(event) {
-	held[event.keyCode]=false;
 	//console.log("keyup, "+event.keyCode);
+	if (event.keyCode == 37 || event.keyCode == 38 || event.keyCode == 39 || event.keyCode == 40 || event.keyCode == 32 ) {
+		held[event.keyCode]=false;
+    	event.preventDefault(); // Prevent the default action
+		return true;
+	}
 }
 
 document.onkeydown=keydown;
@@ -32,62 +52,112 @@ ctx.webkitImageSmoothingEnabled = false;
 ctx.mozImageSmoothingEnabled = false;
 var width = canvas.width;
 var height = canvas.height;
+var audio = new AudioContext();
+
 function clear_canvas() {
 	ctx.fillRect(0, 0, width, height);
 }
 
-function draw_poly(shape) {
+function draw_poly(shape, filled, scale) {
 	var n = shape.length;
 	ctx.beginPath();
-	ctx.moveTo(shape[0][0], shape[0][1]);
+	ctx.moveTo(shape[0][0]*scale, shape[0][1]*scale);
 	for (var i=1; i < n; i++) {
-		ctx.lineTo(shape[i][0], shape[i][1]);
+		var x=shape[i][0];
+		var y=shape[i][1];
+		if (x !== undefined) {
+			ctx.lineTo(x*scale, y*scale);
+		} else {
+		}
 	}
 	ctx.stroke();
-	ctx.fill();
+	if (filled) {
+		ctx.fill();
+	}
 }
 
 function draw_object(o) {
 	ctx.save();
 	ctx.translate(o.x, o.y);
 	ctx.rotate(o.phi);
-	//ctx.scale(o.scale, o.scale); //scale seems pretty useless: it scales the size of the lines, too
-	draw_poly(o.shape);
-	ctx.restore();
-}
-
-function draw_ship(s) {
-	ctx.save();
-	ctx.strokeStyle="lightblue";
-	draw_object(s);
-	if (held[keys.up]) {
-		ctx.strokeStyle="red";
-		draw_object({
-			x: s.x,
-			y: s.y,
-			shape: thrust
-		});
+	if (o.scale) {
+		//ctx.scale(o.scale, o.scale); //scale seems pretty useless: it scales the size of the lines, too
 	}
+	ctx.fillStyle = o.fillStyle;
+	ctx.strokeStyle = o.strokeStyle;
+	draw_poly(o.shape, o.filled, o.scale|1);
 	ctx.restore();
 }
 
-function draw_score(score) {
+function draw_number(number, places, scale, x, y) {
 	ctx.save();
-	ctx.strokeStyle="green";
-	var places = 6;
-	var spacing = 6;
+	var spacing=16;
 	for (var place=0; place < places; place++) {
+		var digit = ~~(number % 10);
+		number = ~~(number / 10);
 		draw_object({
-			x: width - spacing * (place+1),
-			y: 16,
-			shape:font[3]
+			x: x - spacing * (place+1),
+			y: y,
+			shape:font[digit],
+			strokeStyle: "green",
+			scale: scale
 		});
 	}
 	ctx.restore();
+}
+
+function draw_score(score, places) {
+	ctx.save();
+	ctx.lineWidth=2;
+	ctx.lineCap="square"; //butt, round, square
+	ctx.lineJoin="round"; //bevel, round, miter
+	var x = width - 2;
+	var y = 16;
+	draw_number(score, places, 2, x, y);
+	ctx.restore();
+}
+
+function draw_frame_counter(fps) {
+	ctx.save();
+	ctx.lineCap="square"; //butt, round, square
+	ctx.lineJoin="round"; //bevel, round, miter
+	var x = width - 2;
+	var y = height - 16;
+	draw_number(fps, 3, 1, x, y);
+	ctx.restore();
+}
+
+function play_bullet_sound() {
+	var beep = audio.createOscillator();
+	beep.connect(audio.destination);
+	beep.noteOn(0);
+	beep.noteOff(audio.currentTime+0.1);
+}
+
+function spawn_bullet(ship) {
+	var bullet_v = 100;
+	var distance_from_ship=6;
+	var dy = -Math.cos(ship.phi);
+	var dx = Math.sin(ship.phi);
+	var x = ship.x + dx * distance_from_ship;
+	var y = ship.y + dy * distance_from_ship;
+	rocks.push({
+		x: x,
+		y: y,
+		vx: ship.vx + dx * bullet_v,
+		vy: ship.vy + dy * bullet_v,
+		phi: ship.phi,
+		vphi: 0,
+		shape: bullet,
+		filled: true,
+		fillStyle: "white",
+		lineStyle: "white",
+		scale: 1
+	});
 }
 
 var lasttime;
-
+var bulletTime=-1;
 function simulate(elapsed, objects, ship) {
 	for (var i=0; i < objects.length; i++) {
 		var o = objects[i];
@@ -128,8 +198,12 @@ function simulate(elapsed, objects, ship) {
 	if (held[keys.down]) {
 		// shields up
 	}	
-	if (held[keys.space]) {
+	if ((pressed[keys.space] || held[keys.space]) && audio.currentTime > bulletTime) {
+		pressed[keys.space]=false;
 		// spawn a bullet
+		bulletTime=audio.currentTime + 0.25;
+		play_bullet_sound();
+		spawn_bullet(ship);
 	}	
 }
 
@@ -145,10 +219,13 @@ for (var n=0; n < numrocks; n++) {
 		phi: Math.random()*Math.PI*2,
 		vphi: Math.random()*max_r - (max_r/2),
 		shape: rock,
-		scale: Math.random()*4+1
+		filled: true,
+		fillStyle: "gray",
+		lineStyle: "darkgray",
+		scale: 2
 	});
 }
-console.dir(rocks);
+//console.dir(rocks);
 var myship={
 	x: width/2,
 	y: height/2,
@@ -156,9 +233,14 @@ var myship={
 	vx: 0,
 	vy: 0,
 	vphi: 0,
-	shape: ship
+	shape: ship,
+	filled: true,
+	fillStyle: "yellow",
+	strokeStyle: "darkyellow",
+	scale: 2
 };
 rocks.push(myship);
+var fps = 0;
 var framecount=0;
 var lastreport=0;
 function frame(timestamp) {
@@ -171,19 +253,25 @@ function frame(timestamp) {
 	}
 	simulate(elapsed, rocks, myship);
 	clear_canvas();
-	draw_ship(myship);
-	draw_score();
 	for (var i=0; i < rocks.length; i++) {
-		ctx.strokeStyle="lightgray";
 		draw_object(rocks[i]);
 	}
+	draw_score(9876543210, 10);
+	draw_frame_counter(fps);
 	lasttime = timestamp;
 	if (framecount++ > 60) {
-		console.log(framecount / ((timestamp-lastreport)/1000) + " FPS");
+		fps = framecount / ((timestamp-lastreport)/1000);
 		lastreport = timestamp;
 		framecount=0;
 	}
 	requestAnimationFrame(frame);
+}
+
+function hit_test(needle, haystack) {
+	var i;
+	for (i=0; i < haystack.length; i++) {
+		
+	} 
 }
 
 requestAnimationFrame(frame);
