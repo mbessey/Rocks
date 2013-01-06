@@ -7,7 +7,6 @@ var ship = [
 ];
 
 var big_rock = [
-	[]
 ];
 
 var rock = [

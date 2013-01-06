@@ -247,41 +247,7 @@ function move(elapsed, objects) {
 	}
 }
 
-var lasttime;
-var bulletTime = -1;
-var bullet_interval = 0.1;
-var num_bullets = 0;
-var max_bullets = 20;
-function simulate(elapsed, rocks, ship, bullets) {
-	move(elapsed, rocks);
-	move(elapsed, [ship]);
-	move(elapsed, bullets);
-	var hit;
-	if (!ship.dead) {
-		hit = hit_test(ship, rocks);
-		if (hit) {
-			lives--;
-			death();
-			rocks.splice(rocks.indexOf(hit), 1);
-			hit.onRemoved();
-		}
-	} else {
-		if (lasttime > ship.returnAfter) {
-			ship.dead=false;
-		}
-	}
-	for (var i=0; i < bullets.length; i++ ) {
-		var bullet = bullets[i];
-		hit = hit_test(bullet, rocks);
-		if (hit) {
-			score += 10;
-			play_beep(110, 0.1);
-			bullets.splice(i,1);
-			bullet.onRemoved();
-			rocks.splice(rocks.indexOf(hit), 1);
-			hit.onRemoved();
-		}
-	}
+function process_keys(elapsed, ship) {
 	if (held[keys.left]) {
 		ship.vphi = -4;
 	} else if (held[keys.right]) {
@@ -312,28 +278,94 @@ function simulate(elapsed, rocks, ship, bullets) {
 	pressed[keys.space]=false;
 }
 
+var lasttime;
+var bulletTime = -1;
+var bullet_interval = 0.1;
+var num_bullets = 0;
+var max_bullets = 20;
+var num_rocks=0;
+function simulate(elapsed, rocks, ship, bullets) {
+	move(elapsed, rocks);
+	move(elapsed, [ship]);
+	move(elapsed, bullets);
+	var hit;
+	if (!ship.dead) {
+		hit = hit_test(ship, rocks);
+		if (hit) {
+			lives--;
+			death();
+			rocks.splice(rocks.indexOf(hit), 1);
+			hit.onRemoved();
+		}
+	} else {
+		if (lasttime > ship.returnAfter) {
+			ship.dead=false;
+		}
+	}
+	for (var i=0; i < bullets.length; i++ ) {
+		var bullet = bullets[i];
+		hit = hit_test(bullet, rocks);
+		if (hit) {
+			score += 10;
+			play_beep(110, 0.1);
+			bullets.splice(i,1);
+			bullet.onRemoved();
+			rocks.splice(rocks.indexOf(hit), 1);
+			hit.onRemoved();
+		}
+	}
+	if (!ship.dead) {
+		process_keys(elapsed, ship);
+	}
+}
+
 var rocks=[];
 var bullets=[];
-var num_rocks=50;
 var lives = 3;
-var max_r = Math.random()*Math.PI*3;
-for (var n=0; n < num_rocks; n++) {
-	rocks.push({
-		x: Math.random()*width,
-		y: Math.random()*height,
-		vx: Math.random()*16-8,
-		vy: Math.random()*16-8,
-		phi: Math.random()*Math.PI*2,
-		vphi: Math.random()*max_r - (max_r/2),
-		shape: rock,
-		filled: true,
-		fillStyle: "gray",
-		strokeStyle: "black",
-		scale: 2,
-		onRemoved: function() {
-			num_rocks--;
+var level=0;
+var initial_scale = 8;
+var v_max = 256;
+function spawn_rocks(howmany, x, y, size, speed, radius, converge) {
+	var max_r = Math.PI*8/size;
+	for (var n=0; n < howmany; n++) {
+		var phi = Math.random()*Math.PI*2;
+		var dy = -Math.cos(phi);
+		var dx = Math.sin(phi);
+		var vx;
+		var vy;
+		if (converge && n==0) { // First rock is always aimed at the player...
+			vx = -dx*speed;
+			vy = -dy*speed;
+		} else {
+			phi = Math.random()*Math.PI*2;
+			vx = Math.sin(phi)*speed;
+			vy = -Math.cos(phi)*speed;
 		}
-	});
+		rocks.push({
+			x: x + dx * radius,
+			y: y + dy * radius,
+			vx: vx,
+			vy: vy,
+			phi: Math.random()*Math.PI*2,
+			vphi: Math.random()*max_r - (max_r/2),
+			shape: rock,
+			filled: true,
+			fillStyle: "gray",
+			strokeStyle: "black",
+			scale: size,
+			onRemoved: function() {
+				num_rocks--;
+				if (this.scale > 2) {
+					spawn_rocks(2, this.x, this.y, this.scale/2, v_max/this.scale, 10, false);
+				}
+				if (num_rocks == 0) {
+					level++;
+					start_level(level);
+				}
+			}
+		});
+	}
+	num_rocks += howmany;
 }
 var myship={
 	x: width/2,
@@ -379,9 +411,12 @@ function frame(timestamp) {
 		fps = framecount / ((timestamp-lastreport)/1000);
 		lastreport = timestamp;
 		framecount=0;
-		score+=1;
 	}
 	requestAnimationFrame(frame);
+}
+
+function start_level(level) {
+	spawn_rocks(level*2+4, width/2, height/2, initial_scale, v_max/initial_scale, 240, true);
 }
 
 function hit_test(needle, haystack) {
@@ -404,6 +439,6 @@ function death() {
 	spawn_debris(myship);
 	myship.returnAfter=lasttime+1500; // return after 0.5 second
 }
-
 // start animating
+start_level(level);
 requestAnimationFrame(frame);
