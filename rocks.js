@@ -275,7 +275,9 @@ function move(elapsed, objects) {
 
 function process_keys(elapsed, ship) {
 	if (game_state == 1) {
-		process_keys_game(elapsed, ship);
+		if (!ship.dead) {
+			process_keys_game(elapsed, ship);
+		}
 	} else {
 		if (held[keys.space]) {
 			start();
@@ -515,7 +517,8 @@ var level=0;
 
 function start() {
 	lives = 3;
-	level=0;
+	level = 0;
+	score = 0;
 	game_state=1;
 	reset_ship();
 	myship.dead=false;
