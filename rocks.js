@@ -69,6 +69,8 @@ function draw_poly(shape, filled, scale) {
 		if (x !== undefined) {
 			ctx.lineTo(x*scale, y*scale);
 		} else {
+			i++;
+			ctx.moveTo(shape[i][0]*scale, shape[i][1]*scale);
 		}
 	}
 	ctx.stroke();
@@ -86,13 +88,15 @@ function draw_object(o) {
 	}
 	ctx.fillStyle = o.fillStyle;
 	ctx.strokeStyle = o.strokeStyle;
-	draw_poly(o.shape, o.filled, o.scale|1);
+	if (o.shape.length >0) {
+		draw_poly(o.shape, o.filled, o.scale|1);
+	}
 	ctx.restore();
 }
 
 function draw_number(number, places, scale, x, y) {
 	ctx.save();
-	var spacing=16;
+	var spacing=8*scale;
 	for (var place=0; place < places; place++) {
 		var digit = ~~(number % 10);
 		number = ~~(number / 10);
@@ -141,6 +145,28 @@ function draw_lives() {
 	ctx.restore();
 }
 
+function draw_text(text, scale, x, y, align) {
+	var string = text.toUpperCase();
+	var spacing=scale*8;
+	ctx.save();
+	if (align[0].toLowerCase() === 'c') {
+		x = x - text.length / 2 * spacing;
+	} else if (align[0].toLowerCase() === 'r') {
+		x = x - text.length * spacing;
+	}
+	for (var i=0; i < string.length; i++) {
+		var letter = string.substring(i, i+1);
+		draw_object({
+			x: x + spacing * i,
+			y: y,
+			shape:font[letter],
+			strokeStyle: "yellow",
+			scale: scale
+		});
+	}
+	ctx.restore();
+}
+
 function play_beep(freq, duration) {
 	var beep = audio.createOscillator();
 	beep.frequency.setValueAtTime(freq, audio.currentTime);
@@ -160,9 +186,9 @@ function play_bullet_sound() {
 	play_beep(220, 0.1);
 }
 
-var bullet_life = 3;
+var bullet_life = 1;
 function spawn_bullet(ship) {
-	var bullet_v = 100;
+	var bullet_v = 200;
 	var distance_from_ship=6;
 	var dy = -Math.cos(ship.phi);
 	var dx = Math.sin(ship.phi);
@@ -248,6 +274,15 @@ function move(elapsed, objects) {
 }
 
 function process_keys(elapsed, ship) {
+	if (game_state == 1) {
+		process_keys_game(elapsed, ship);
+	} else {
+		if (held[keys.space]) {
+			start();
+		}
+	}
+}
+function process_keys_game(elapsed, ship) {
 	if (held[keys.left]) {
 		ship.vphi = -4;
 	} else if (held[keys.right]) {
@@ -268,7 +303,7 @@ function process_keys(elapsed, ship) {
 	}
 	if (held[keys.down]) {
 		// shields up
-	}	
+	}
 	if ((pressed[keys.space] || held[keys.space]) && lasttime > bulletTime && num_bullets < max_bullets) {
 		// spawn a bullet
 		bulletTime = lasttime + (1000 * bullet_interval);
@@ -280,7 +315,7 @@ function process_keys(elapsed, ship) {
 
 var lasttime;
 var bulletTime = -1;
-var bullet_interval = 0.1;
+var bullet_interval = 0.2;
 var num_bullets = 0;
 var max_bullets = 20;
 var num_rocks=0;
@@ -292,13 +327,12 @@ function simulate(elapsed, rocks, ship, bullets) {
 	if (!ship.dead) {
 		hit = hit_test(ship, rocks);
 		if (hit) {
-			lives--;
 			death();
 			rocks.splice(rocks.indexOf(hit), 1);
 			hit.onRemoved();
 		}
 	} else {
-		if (lasttime > ship.returnAfter) {
+		if (lasttime > ship.returnAfter && game_state == 1) {
 			ship.dead=false;
 		}
 	}
@@ -314,15 +348,11 @@ function simulate(elapsed, rocks, ship, bullets) {
 			hit.onRemoved();
 		}
 	}
-	if (!ship.dead) {
-		process_keys(elapsed, ship);
-	}
+	process_keys(elapsed, ship);
 }
 
 var rocks=[];
 var bullets=[];
-var lives = 3;
-var level=0;
 var initial_scale = 8;
 var v_max = 256;
 function spawn_rocks(howmany, x, y, size, speed, radius, converge) {
@@ -333,7 +363,7 @@ function spawn_rocks(howmany, x, y, size, speed, radius, converge) {
 		var dx = Math.sin(phi);
 		var vx;
 		var vy;
-		if (converge && n==0) { // First rock is always aimed at the player...
+		if (converge && n==0) { // Fix: First rock should always be aimed at the player, not the center...
 			vx = -dx*speed;
 			vy = -dy*speed;
 		} else {
@@ -367,33 +397,23 @@ function spawn_rocks(howmany, x, y, size, speed, radius, converge) {
 	}
 	num_rocks += howmany;
 }
-var myship={
-	x: width/2,
-	y: height/2,
-	phi: 0,
-	vx: 0,
-	vy: 0,
-	vphi: 0,
-	shape: ship,
-	filled: true,
-	fillStyle: "yellow",
-	strokeStyle: "darkyellow",
-	scale: 2
-};
-//rocks.push(myship);
-var fps = 0;
-var framecount=0;
-var lastreport=0;
-function frame(timestamp) {
-	var elapsed;
-	if (lasttime === undefined) {
-		elapsed = 0;
-		lastreport = timestamp;
-	} else {
-		elapsed = (timestamp - lasttime);
+
+function draw_title(framecount) {
+	draw_text("Rocks!", 4, width/2, 100, "center");
+	draw_text("An HTML5 Asteroids game", 2, width/2, 132, "center");
+	if (framecount < 20 || framecount > 40) {
+		draw_text("Press space to start", 2, width/2, 200, "center");
 	}
-	simulate(elapsed, rocks, myship, bullets);
-	clear_canvas();
+}
+
+function draw_gameover(framecount) {
+	draw_text("Game Over", 2, width/2, 132, "center");
+	if (framecount < 20 || framecount > 40) {
+		draw_text("Press space to play again", 2, width/2, 200, "center");
+	}
+}
+
+function draw_game() {
 	for (var i=0; i < rocks.length; i++) {
 		draw_object(rocks[i]);
 	}
@@ -405,6 +425,27 @@ function frame(timestamp) {
 	}
 	draw_score(score, 10);
 	draw_lives();
+}
+
+var fps = 0;
+var framecount=0;
+var lastreport=0;
+function frame(timestamp) {
+	var elapsed;
+	clear_canvas();
+	draw_game();
+	if (game_state == 0) {
+		draw_title(framecount);
+	} else if (game_state == 2) {
+		draw_gameover(framecount);
+	}
+	if (lasttime === undefined) {
+		elapsed = 0;
+		lastreport = timestamp;
+	} else {
+		elapsed = (timestamp - lasttime);
+	}
+	simulate(elapsed, rocks, myship, bullets);
 	draw_frame_counter(fps);
 	lasttime = timestamp;
 	if (framecount++ > 60) {
@@ -412,10 +453,14 @@ function frame(timestamp) {
 		lastreport = timestamp;
 		framecount=0;
 	}
+	//draw_text("ABCDEFGHIJKLMNOPQRSTUVWXYZ!.?", 1, 16, 32);
+	//draw_text("ABCDEFGHIJKLMNOPQRSTUVWXYZ!.?", 4, 16, 64);
+	//draw_number(9876543210, 10, 2, 320, 48);
 	requestAnimationFrame(frame);
 }
 
 function start_level(level) {
+	rocks=[];
 	spawn_rocks(level*2+4, width/2, height/2, initial_scale, v_max/initial_scale, 240, true);
 }
 
@@ -432,13 +477,53 @@ function hit_test(needle, haystack) {
 }
 
 function death() {
+	lives--;
 	myship.dead=true;
 	myship.vx=0;
 	myship.vy=0;
 	myship.vphi=0;
 	spawn_debris(myship);
-	myship.returnAfter=lasttime+1500; // return after 0.5 second
+	if (lives === 0) {
+		game_state = 2;
+	} else {
+		myship.returnAfter=lasttime+1500; // return after 1.5 second
+	}
 }
+
+function reset_ship() {
+	myship={
+		x: width/2,
+		y: height/2,
+		phi: 0,
+		vx: 0,
+		vy: 0,
+		vphi: 0,
+		shape: ship,
+		filled: true,
+		fillStyle: "yellow",
+		strokeStyle: "darkyellow",
+		scale: 2
+	};
+}
+
+// set up
+var myship;
+var states = ["attract", "playing", "over"];
+var game_state=0;
+var lives = 3;
+var level=0;
+
+function start() {
+	lives = 3;
+	level=0;
+	game_state=1;
+	reset_ship();
+	myship.dead=false;
+	start_level(level);
+}
+
 // start animating
+reset_ship();
+myship.dead=true;
 start_level(level);
 requestAnimationFrame(frame);
