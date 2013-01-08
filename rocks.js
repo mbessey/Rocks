@@ -19,7 +19,8 @@ var keys={
 	up: 38,
 	right: 39,
 	down: 40,
-	space: 32
+	space: 32,
+	o: 79
 };
 var held=[];
 var pressed=[];
@@ -97,6 +98,16 @@ function draw_object(o) {
 	if (o.shape.length >0) {
 		draw_poly(o.shape, o.filled, o.scale|1);
 	}
+	ctx.restore();
+	if (o.shape.length > 0 && show_outlines) {
+		draw_object_transformed(o);
+	}
+}
+
+function draw_object_transformed(o) {
+	ctx.save();
+	ctx.strokeStyle = "red";
+	draw_poly(object_to_world(o), false, 1);
 	ctx.restore();
 }
 
@@ -237,7 +248,7 @@ function spawn_debris(target, color) {
 			vy: target.vy + dy * bullet_v,
 			phi: phi,
 			vphi: 0,
-			shape: bullet,
+			shape: debris,
 			filled: true,
 			fillStyle: color,
 			strokeStyle: color,
@@ -291,6 +302,7 @@ function process_keys(elapsed, ship) {
 		}
 	}
 }
+
 function process_keys_game(elapsed, ship) {
 	if (held[keys.left]) {
 		ship.vphi = -4;
@@ -312,6 +324,9 @@ function process_keys_game(elapsed, ship) {
 	}
 	if (held[keys.down]) {
 		// shields up
+		ship.shielded = true;
+	} else {
+		ship.shielded = false;
 	}
 	if ((pressed[keys.space] || held[keys.space]) && lasttime > bulletTime && num_bullets < max_bullets) {
 		// spawn a bullet
@@ -320,6 +335,11 @@ function process_keys_game(elapsed, ship) {
 		spawn_bullet(ship);
 	}	
 	pressed[keys.space]=false;
+	if (held[keys.o]) {
+		show_outlines=true;
+	} else {
+		show_outlines=false;
+	}
 }
 
 var lasttime;
@@ -331,15 +351,30 @@ var num_rocks=0;
 function simulate(elapsed, rocks, ship, bullets) {
 	move(elapsed, rocks);
 	move(elapsed, [ship]);
+	shield.x = ship.x;
+	shield.y = ship.y;
+	shield.phi = Math.random()*Math.PI*2;
 	move(elapsed, bullets);
 	move(elapsed, particles);
 	var hit;
 	if (!ship.dead) {
-		hit = hit_test(ship, rocks);
-		if (hit) {
-			death();
-			rocks.splice(rocks.indexOf(hit), 1);
-			hit.onRemoved();
+		if (ship.shielded) {
+			hit = hit_test(shield, rocks);
+			if (hit) {
+				var vx = ship.vx;
+				var vy = ship.vy;
+				ship.vx = hit.vx;
+				ship.vy = hit.vy;
+				hit.vx=vx;
+				hit.vy=vy;
+			}
+		} else {
+			hit = hit_test(ship, rocks);
+			if (hit) {
+				death();
+				rocks.splice(rocks.indexOf(hit), 1);
+				hit.onRemoved();
+			}
 		}
 	} else {
 		if (lasttime > ship.returnAfter && game_state == 1) {
@@ -439,6 +474,9 @@ function draw_game() {
 	}
 	if (!myship.dead) {
 		draw_object(myship);
+		if (myship.shielded) {
+			draw_object(shield);
+		}
 	}
 	draw_score(score, 10);
 	draw_lives();
@@ -482,23 +520,15 @@ function start_level(level) {
 	rocks=[];
 	bullets=[];
 	num_rocks=0;
+	num_bullets=0;
 	spawn_rocks(level*2+4, width/2, height/2, initial_scale, v_max/initial_scale, 240, true);
-}
-
-function to_world(shape) {
-	
-}
-
-function point_in_poly() {
 }
 
 function hit_test(needle, haystack) {
 	var i;
 	for (i=0; i < haystack.length; i++) {
 		target = haystack[i];
-		var dx = needle.x-target.x;
-		var dy = needle.y-target.y;
-		if (dx*dx+dy*dy < 80) {
+		if (intersects(object_to_world(needle), object_to_world(target))) {
 			return target;
 		}
 	}
@@ -553,10 +583,19 @@ function reset_ship() {
 
 // set up
 var myship;
+var shield = {
+	phi: 0,
+	strokeStyle: "purple",
+	fillStyle: "rgba(255, 0, 255, 0.2)",
+	filled: true,
+	shape: shield,
+	scale: 4
+};
 var states = ["attract", "playing", "over"];
 var game_state=0;
 var lives = 3;
 var level=0;
+var show_outlines=false;
 
 function start() {
 	lives = 3;

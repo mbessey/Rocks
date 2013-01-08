@@ -6,21 +6,22 @@ I love the old vector-graphics Atari arcade games of yore, so I figured I'd star
 
 **How to play**
 
-Left & Right arrow keys to turn, up arrow to fire thrusters, space to fire. Don't hit the rocks, and watch out for UFOs.
+Left & Right arrow keys to turn, up arrow to fire thrusters, space to fire, down for shield. Don't hit the rocks, and watch out for UFOs.
 
 **Known bugs**
 
 * Objects disappear from one side of the screen and reappear on the other side, instead of "wrapping around"
+* Hit detection is *still* not quite right - there's a difference between the canvas rendering, and the coordinate transformation for the hit-detect polygons.
 
 **FAQ**
 
 *Q:* Are the canvas line-drawing primitives fast enough to make something like this sensible to attempt?
 
-*A*: Apparently so - running on Chrome, I get about 60FPS animating over 500 objects at once. Granted, the "simulation" doesn't include collisions or gravity or any kind of physics other than Newton's First Law, but there's clearly some headroom for a game with a more reasonable number of on-screen objects. I'll optimize things a bit once I have a better idea where the bottlenecks are.
+*A*: Apparently so - running on Chrome, I get about 60FPS animating over 500 objects at once. Granted, that "simulation" didn't include collisions or gravity or any kind of physics other than Newton's First Law, but there's clearly some headroom for a game with a more reasonable number of on-screen objects. I'll optimize things a bit once I have a better idea where the bottlenecks are.
 
 **Ongoing investigations**
 
-* How do I make sounds?
+* Why does the sound flake out sometimes? Too many voices at once, maybe?
 
 **Implementation details**
 
