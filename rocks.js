@@ -492,6 +492,10 @@ function draw_title(framecount) {
 	if (framecount < 20 || framecount > 40) {
 		draw_text("Press space to start", 2, width/2, 200, "center");
 	}
+	draw_text("Space bar fires", 2, width/2, 240, "center");
+	draw_text("Left and Right arrows turn", 2, width/2, 270, "center");
+	draw_text("Up arrow fires engines", 2, width/2, 300, "center");
+	draw_text("Down arrow activates shield", 2, width/2, 330, "center");
 }
 
 function draw_gameover(framecount) {
@@ -630,7 +634,7 @@ function center_safe() {
 	for (var i=0; i < rocks.length; i++) {
 		var dx = rocks[i].x - width/2;
 		var dy = rocks[i].y - height/2;
-		if (dx*dx + dy*dy < 10000) {
+		if (dx*dx + dy*dy < 5000) {
 			return false;
 		}
 	}
