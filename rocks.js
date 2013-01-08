@@ -205,6 +205,27 @@ function play_bullet_sound() {
 	play_beep(220, 0.1);
 }
 
+var shieldsound;
+function play_shield() {
+	shieldsound = audio.createOscillator();
+	var lfo = audio.createOscillator();
+	var gain = audio.createGainNode();
+	shieldsound.frequency.value = 440;
+	shieldsound.connect(audio.destination);
+
+	lfo.frequency.value = 2;
+	lfo.connect(gain);
+
+	gain.gain.value=100;
+	gain.connect(shieldsound.detune);
+	lfo.noteOn(0);
+	shieldsound.noteOn(0);
+}
+
+function stop_shield() {
+	shieldsound.noteOff(0);
+}
+
 var bullet_life = 1;
 function spawn_bullet(ship) {
 	var bullet_v = 200;
@@ -292,7 +313,7 @@ function move(elapsed, objects) {
 }
 
 function process_keys(elapsed, ship) {
-	if (game_state == 1) {
+	if (game_state == state.playing) {
 		if (!ship.dead) {
 			process_keys_game(elapsed, ship);
 		}
@@ -324,8 +345,15 @@ function process_keys_game(elapsed, ship) {
 	}
 	if (held[keys.down]) {
 		// shields up
+		if (! ship.shielded) {
+			play_shield();
+		}
 		ship.shielded = true;
+		
 	} else {
+		if (ship.shielded) {
+			stop_shield();
+		}
 		ship.shielded = false;
 	}
 	if ((pressed[keys.space] || held[keys.space]) && lasttime > bulletTime && num_bullets < max_bullets) {
@@ -377,7 +405,8 @@ function simulate(elapsed, rocks, ship, bullets) {
 			}
 		}
 	} else {
-		if (lasttime > ship.returnAfter && game_state == 1) {
+		if (lasttime > ship.returnAfter && game_state == state.playing && center_safe()) {
+			reset_ship();
 			ship.dead=false;
 		}
 	}
@@ -434,7 +463,7 @@ function spawn_rocks(howmany, x, y, size, speed, radius, converge) {
 				num_rocks--;
 				spawn_debris(this, "gray");
 				if (this.scale > 2) {
-					spawn_rocks(2, this.x, this.y, this.scale/2, v_max/this.scale, 10, false);
+					spawn_rocks(2, this.x, this.y, this.scale/2, v_max/this.scale*(Math.random()+0.5), 10, false);
 				}
 				if (num_rocks == 0) {
 					level++;
@@ -491,9 +520,9 @@ function frame(timestamp) {
 	var elapsed;
 	clear_canvas();
 	draw_game();
-	if (game_state == 0) {
+	if (game_state == state.attract) {
 		draw_title(framecount);
-	} else if (game_state == 2) {
+	} else if (game_state == state.over) {
 		draw_gameover(framecount);
 	}
 	if (lasttime === undefined) {
@@ -521,6 +550,7 @@ function start_level(level) {
 	bullets=[];
 	num_rocks=0;
 	num_bullets=0;
+	reset_ship();
 	spawn_rocks(level*2+4, width/2, height/2, initial_scale, v_max/initial_scale, 240, true);
 }
 
@@ -542,7 +572,7 @@ function death() {
 	myship.vphi=0;
 	spawn_debris(myship, myship.fillStyle);
 	if (lives === 0) {
-		game_state = 2;
+		game_state = state.over;
 	} else {
 		myship.returnAfter=lasttime+1500; // return after 1.5 second
 	}
@@ -581,6 +611,17 @@ function reset_ship() {
 	};
 }
 
+function center_safe() {
+	for (var i=0; i < rocks.length; i++) {
+		var dx = rocks[i].x - width/2;
+		var dy = rocks[i].y - height/2;
+		if (dx*dx + dy*dy < 10000) {
+			return false;
+		}
+	}
+	return true;
+}
+
 // set up
 var myship;
 var shield = {
@@ -591,8 +632,12 @@ var shield = {
 	shape: shield,
 	scale: 4
 };
-var states = ["attract", "playing", "over"];
-var game_state=0;
+var state = {
+	attract: 0,
+	playing: 1,
+	over: 2
+};
+var game_state=state.attract;
 var lives = 3;
 var level=0;
 var show_outlines=false;
@@ -601,14 +646,11 @@ function start() {
 	lives = 3;
 	level = 0;
 	score = 0;
-	game_state=1;
-	reset_ship();
-	myship.dead=false;
+	game_state=state.playing;
 	start_level(level);
 }
 
 // start animating
-reset_ship();
-myship.dead=true;
 start_level(level);
+myship.dead=true;
 requestAnimationFrame(frame);
