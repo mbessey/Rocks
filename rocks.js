@@ -425,7 +425,6 @@ function simulate(elapsed, rocks, ship, bullets) {
 		var bullet = bullets[i];
 		hit = hit_test(bullet, rocks);
 		if (hit) {
-			score += 10;
 			play_beep(110, 0.1);
 			bullets.splice(i,1);
 			bullet.onRemoved();
@@ -471,6 +470,7 @@ function spawn_rocks(howmany, x, y, size, speed, radius, converge) {
 			lineWidth: 0.5,
 			scale: size,
 			onRemoved: function() {
+				score += 80/this.scale;
 				num_rocks--;
 				spawn_debris(this, "gray");
 				if (this.scale > 2) {
