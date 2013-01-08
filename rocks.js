@@ -121,7 +121,6 @@ function draw_number(number, places, scale, x, y) {
 			x: x - spacing * (place+1),
 			y: y,
 			shape:font[digit],
-			strokeStyle: "green",
 			scale: scale
 		});
 	}
@@ -133,19 +132,25 @@ function draw_score(score, places) {
 	ctx.lineWidth=2;
 	ctx.lineCap="square"; //butt, round, square
 	ctx.lineJoin="round"; //bevel, round, miter
+	ctx.strokeStyle="green";
 	var x = width - 2;
 	var y = 16;
 	draw_number(score, places, 2, x, y);
 	ctx.restore();
 }
 
-function draw_frame_counter(fps) {
+function draw_frame_counter(fps, min, max) {
 	ctx.save();
 	ctx.lineCap="square"; //butt, round, square
 	ctx.lineJoin="round"; //bevel, round, miter
 	var x = width - 2;
 	var y = height - 16;
+	ctx.strokeStyle = "yellow";
 	draw_number(fps, 3, 1, x, y);
+	ctx.strokeStyle = "red";
+	draw_number(min, 3, 1, x-50, y);
+	ctx.strokeStyle = "green";
+	draw_number(max, 3, 1, x-100, y);
 	ctx.restore();
 }
 
@@ -210,8 +215,11 @@ function play_shield() {
 	shieldsound = audio.createOscillator();
 	var lfo = audio.createOscillator();
 	var gain = audio.createGainNode();
+	var gain2 = audio.createGainNode();
+	gain2.gain.value=.5;
 	shieldsound.frequency.value = 440;
-	shieldsound.connect(audio.destination);
+	shieldsound.connect(gain2);
+	gain2.connect(audio.destination);
 
 	lfo.frequency.value = 2;
 	lfo.connect(gain);
@@ -280,6 +288,34 @@ function spawn_debris(target, color) {
 		});
 	}
 	//play_bullet_sound();
+}
+
+function spawn_tag(target, tag) {
+	var scale=2;
+	var spacing = 8*scale;
+	var phi = Math.random()*Math.PI*2;
+	var dy = -Math.cos(phi);
+	var dx = Math.sin(phi);
+	var x = target.x - tag.length/2*spacing - spacing/2;
+	var y = target.y;
+	var tag_v = 0;
+	for (var i=0; i<tag.length; i++) {
+		var c=tag[i];
+		particles.push({
+			x: x+spacing * i,
+			y: y,
+			vx: target.vx + dx * tag_v,
+			vy: target.vy + dy * tag_v,
+			phi: 0,
+			vphi: 0,
+			shape: font[c],
+			strokeStyle: "lightblue",
+			scale: scale,
+			removeAfter: (lasttime+1000),
+			onRemoved: function() {
+			}
+		});
+	}
 }
 
 function move(elapsed, objects) {
@@ -395,12 +431,16 @@ function simulate(elapsed, rocks, ship, bullets) {
 		if (ship.shielded) {
 			hit = hit_test(shield, rocks);
 			if (hit) {
-				var vx = ship.vx;
-				var vy = ship.vy;
-				ship.vx = hit.vx;
-				ship.vy = hit.vy;
-				hit.vx=vx;
-				hit.vy=vy;
+				for (var i=0; i < hit.length; i++) {
+					var rock = hit[i];
+					var phi = Math.atan2(ship.x-rock.x, ship.y-rock.y);
+					var vx = ship.vx;
+					var vy = ship.vy;
+					ship.vx = rock.vx;
+					ship.vy = rock.vy;
+					rock.vx=vx;
+					rock.vy=vy;
+				}
 			}
 			ship.shieldRemaining -= (elapsed/1000);
 			if (ship.shieldRemaining <= 0) {
@@ -408,7 +448,7 @@ function simulate(elapsed, rocks, ship, bullets) {
 				stop_shield();
 			}
 		} else {
-			hit = hit_test(ship, rocks);
+			hit = hit_test(ship, rocks, true);
 			if (hit) {
 				death();
 				rocks.splice(rocks.indexOf(hit), 1);
@@ -423,7 +463,7 @@ function simulate(elapsed, rocks, ship, bullets) {
 	}
 	for (var i=0; i < bullets.length; i++ ) {
 		var bullet = bullets[i];
-		hit = hit_test(bullet, rocks);
+		hit = hit_test(bullet, rocks, true);
 		if (hit) {
 			play_beep(110, 0.1);
 			bullets.splice(i,1);
@@ -471,8 +511,10 @@ function spawn_rocks(howmany, x, y, size, speed, radius, converge) {
 			scale: size,
 			onRemoved: function() {
 				score += 80/this.scale;
+				check_score(score);
 				num_rocks--;
 				spawn_debris(this, "gray");
+				spawn_tag(this, (80/this.scale).toString());
 				if (this.scale > 2) {
 					spawn_rocks(2, this.x, this.y, this.scale/2, v_max/this.scale*(Math.random()+0.5), 10, false);
 				}
@@ -484,6 +526,13 @@ function spawn_rocks(howmany, x, y, size, speed, radius, converge) {
 		});
 	}
 	num_rocks += howmany;
+}
+
+function check_score(score) {
+	if (score %1000 == 0) {
+		lives++;
+		spawn_tag(myship, "1UP");
+	}
 }
 
 function draw_title(framecount) {
@@ -531,9 +580,11 @@ function draw_game() {
 	ctx.restore();
 }
 
-var fps = 0;
+var fps;
 var framecount=0;
 var lastreport=0;
+var min_fps;
+var max_fps;
 function frame(timestamp) {
 	var elapsed;
 	clear_canvas();
@@ -550,16 +601,19 @@ function frame(timestamp) {
 		elapsed = (timestamp - lasttime);
 	}
 	simulate(elapsed, rocks, myship, bullets);
-	draw_frame_counter(fps);
+	draw_frame_counter(fps, min_fps, max_fps);
 	lasttime = timestamp;
 	if (framecount++ > 60) {
 		fps = framecount / ((timestamp-lastreport)/1000);
+		if (!min_fps || min_fps > fps) {
+			min_fps=fps;
+		}
+		if (!max_fps || max_fps < fps) {
+			max_fps=fps;
+		}
 		lastreport = timestamp;
 		framecount=0;
 	}
-	//draw_text("ABCDEFGHIJKLMNOPQRSTUVWXYZ!.?", 1, 16, 32);
-	//draw_text("ABCDEFGHIJKLMNOPQRSTUVWXYZ!.?", 4, 16, 64);
-	//draw_number(9876543210, 10, 2, 320, 48);
 	requestAnimationFrame(frame);
 }
 
@@ -572,14 +626,22 @@ function start_level(level) {
 	spawn_rocks(level*2+4, width/2, height/2, initial_scale, v_max/initial_scale, 240, true);
 }
 
-function hit_test(needle, haystack) {
+function hit_test(needle, haystack, single) {
 	var i;
+	var targets=[];
 	for (i=0; i < haystack.length; i++) {
 		target = haystack[i];
 		if (intersects(object_to_world(needle), object_to_world(target))) {
-			return target;
+			targets.push(target);
+			if (single) {
+				return target;
+			}
 		}
 	}
+	if (single) {
+		return undefined;
+	}
+	return targets;
 }
 
 function death() {
