@@ -338,18 +338,21 @@ function process_keys_game(elapsed, ship) {
 		var dx = Math.sin(ship.phi);
 		ship.vy+=(dy*elapsed/5);
 		ship.vx+=(dx*elapsed/5);
+		ship.thrusting=true;
 	} else {
 		// "friction" in space isn't realistic, but the original did it, so...
-		ship.vx *= 0.99;
-		ship.vy *= 0.99;
+		ship.thrusting=false;
+		ship.vx *= 0.995;
+		ship.vy *= 0.995;
 	}
 	if (held[keys.down]) {
-		// shields up
-		if (! ship.shielded) {
-			play_shield();
+		if (ship.shieldRemaining >0) {
+			// shields up
+			if (! ship.shielded) {
+				play_shield();
+			}
+			ship.shielded = true;
 		}
-		ship.shielded = true;
-		
 	} else {
 		if (ship.shielded) {
 			stop_shield();
@@ -382,6 +385,9 @@ function simulate(elapsed, rocks, ship, bullets) {
 	shield.x = ship.x;
 	shield.y = ship.y;
 	shield.phi = Math.random()*Math.PI*2;
+	mythrust.x = ship.x;
+	mythrust.y = ship.y;
+	mythrust.phi = ship.phi;
 	move(elapsed, bullets);
 	move(elapsed, particles);
 	var hit;
@@ -395,6 +401,11 @@ function simulate(elapsed, rocks, ship, bullets) {
 				ship.vy = hit.vy;
 				hit.vx=vx;
 				hit.vy=vy;
+			}
+			ship.shieldRemaining -= (elapsed/1000);
+			if (ship.shieldRemaining <= 0) {
+				ship.shielded = false;
+				stop_shield();
 			}
 		} else {
 			hit = hit_test(ship, rocks);
@@ -506,6 +517,9 @@ function draw_game() {
 		if (myship.shielded) {
 			draw_object(shield);
 		}
+		if (myship.thrusting) {
+			draw_object(mythrust);
+		}
 	}
 	draw_score(score, 10);
 	draw_lives();
@@ -607,7 +621,8 @@ function reset_ship() {
 		fillStyle: "yellow",
 		strokeStyle: "#808000",
 		lineWidth: 1,
-		scale: 2
+		scale: 2,
+		shieldRemaining: 5
 	};
 }
 
@@ -631,6 +646,14 @@ var shield = {
 	filled: true,
 	shape: shield,
 	scale: 4
+};
+var mythrust= {
+	phi: 0,
+	strokeStyle: "red",
+	fillStyle: "rgba(255, 128, 0, 0.2)",
+	filled: true,
+	shape: thrust,
+	scale: 2
 };
 var state = {
 	attract: 0,
