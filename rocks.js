@@ -69,14 +69,19 @@ function draw_poly(shape, filled, scale) {
 		if (x !== undefined) {
 			ctx.lineTo(x*scale, y*scale);
 		} else {
+			if (filled) {
+				ctx.fill();
+				ctx.stroke();
+				ctx.beginPath();
+			}
 			i++;
 			ctx.moveTo(shape[i][0]*scale, shape[i][1]*scale);
 		}
 	}
-	ctx.stroke();
 	if (filled) {
 		ctx.fill();
 	}
+	ctx.stroke();
 }
 
 function draw_object(o) {
@@ -86,6 +91,7 @@ function draw_object(o) {
 	if (o.scale) {
 		//ctx.scale(o.scale, o.scale); //scale seems pretty useless: it scales the size of the lines, too
 	}
+	ctx.lineWidth = o.lineWidth;
 	ctx.fillStyle = o.fillStyle;
 	ctx.strokeStyle = o.strokeStyle;
 	if (o.shape.length >0) {
@@ -138,7 +144,9 @@ function draw_lives() {
 		draw_object({
 			x: (i+1) * 10,
 			y: 16,
+			filled: true,
 			strokeStyle: "green",
+			fillStyle: "green",
 			shape: ship
 		});
 	}
@@ -157,7 +165,7 @@ function draw_text(text, scale, x, y, align) {
 	for (var i=0; i < string.length; i++) {
 		var letter = string.substring(i, i+1);
 		draw_object({
-			x: x + spacing * i,
+			x: x + spacing * i + spacing/2, //wacky +1/2 because "0,0" is center of character
 			y: y,
 			shape:font[letter],
 			strokeStyle: "yellow",
@@ -214,29 +222,28 @@ function spawn_bullet(ship) {
 	play_bullet_sound();
 }
 
-function spawn_debris(ship) {
+function spawn_debris(target, color) {
 	var bullet_v = 100;
 	for (var i=0; i < 5; i++) {
 		var phi = Math.random()*Math.PI*2;
 		var dy = -Math.cos(phi);
 		var dx = Math.sin(phi);
-		var x = ship.x;
-		var y = ship.y;
-		bullets.push({
+		var x = target.x;
+		var y = target.y;
+		particles.push({
 			x: x,
 			y: y,
-			vx: ship.vx + dx * bullet_v,
-			vy: ship.vy + dy * bullet_v,
+			vx: target.vx + dx * bullet_v,
+			vy: target.vy + dy * bullet_v,
 			phi: phi,
 			vphi: 0,
 			shape: bullet,
 			filled: true,
-			fillStyle: "yellow",
-			strokeStyle: "yellow",
+			fillStyle: color,
+			strokeStyle: color,
 			scale: 1,
 			removeAfter: (lasttime+1000),
 			onRemoved: function() {
-				num_bullets--;
 			}
 		});
 	}
@@ -325,6 +332,7 @@ function simulate(elapsed, rocks, ship, bullets) {
 	move(elapsed, rocks);
 	move(elapsed, [ship]);
 	move(elapsed, bullets);
+	move(elapsed, particles);
 	var hit;
 	if (!ship.dead) {
 		hit = hit_test(ship, rocks);
@@ -355,6 +363,7 @@ function simulate(elapsed, rocks, ship, bullets) {
 
 var rocks=[];
 var bullets=[];
+var particles=[];
 var initial_scale = 8;
 var v_max = 256;
 function spawn_rocks(howmany, x, y, size, speed, radius, converge) {
@@ -380,13 +389,15 @@ function spawn_rocks(howmany, x, y, size, speed, radius, converge) {
 			vy: vy,
 			phi: Math.random()*Math.PI*2,
 			vphi: Math.random()*max_r - (max_r/2),
-			shape: rock,
+			shape: rock_shape(size),
 			filled: true,
 			fillStyle: "gray",
 			strokeStyle: "black",
+			lineWidth: 0.5,
 			scale: size,
 			onRemoved: function() {
 				num_rocks--;
+				spawn_debris(this, "gray");
 				if (this.scale > 2) {
 					spawn_rocks(2, this.x, this.y, this.scale/2, v_max/this.scale, 10, false);
 				}
@@ -416,17 +427,23 @@ function draw_gameover(framecount) {
 }
 
 function draw_game() {
+	ctx.save();
 	for (var i=0; i < rocks.length; i++) {
 		draw_object(rocks[i]);
 	}
 	for (var i=0; i < bullets.length; i++) {
 		draw_object(bullets[i]);
 	}
+	for (var i=0; i < particles.length; i++) {
+		draw_object(particles[i]);
+	}
 	if (!myship.dead) {
 		draw_object(myship);
 	}
 	draw_score(score, 10);
 	draw_lives();
+	//draw_text("!2345678901234567890123456789012345678!", 2, width/2, height/2, "center");
+	ctx.restore();
 }
 
 var fps = 0;
@@ -463,7 +480,16 @@ function frame(timestamp) {
 
 function start_level(level) {
 	rocks=[];
+	bullets=[];
+	num_rocks=0;
 	spawn_rocks(level*2+4, width/2, height/2, initial_scale, v_max/initial_scale, 240, true);
+}
+
+function to_world(shape) {
+	
+}
+
+function point_in_poly() {
 }
 
 function hit_test(needle, haystack) {
@@ -484,12 +510,28 @@ function death() {
 	myship.vx=0;
 	myship.vy=0;
 	myship.vphi=0;
-	spawn_debris(myship);
+	spawn_debris(myship, myship.fillStyle);
 	if (lives === 0) {
 		game_state = 2;
 	} else {
 		myship.returnAfter=lasttime+1500; // return after 1.5 second
 	}
+}
+
+function rock_shape(scale) {
+	var jaggedness = 0.5; // 0==smooth, 1==spiky
+	var vertices = [];
+	var num_v = 11;
+	var max_r = 4;
+	for (var i=0; i < num_v; i++) {
+		var phi = Math.PI*2/num_v*i;
+		var r = max_r + Math.random()*jaggedness*max_r - jaggedness*max_r;
+		var y = -Math.cos(phi) * r;
+		var x = Math.sin(phi) * r;
+		vertices.push([x, y]);
+	}
+	vertices.push([vertices[0][0], vertices[0][1]]);
+	return vertices;
 }
 
 function reset_ship() {
@@ -503,7 +545,8 @@ function reset_ship() {
 		shape: ship,
 		filled: true,
 		fillStyle: "yellow",
-		strokeStyle: "darkyellow",
+		strokeStyle: "#808000",
+		lineWidth: 1,
 		scale: 2
 	};
 }
