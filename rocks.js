@@ -700,6 +700,7 @@ function death() {
 	myship.vx=0;
 	myship.vy=0;
 	myship.vphi=0;
+	play_death();
 	if (myship.thrusting) {
 		thrust_stop();
 	}
@@ -843,7 +844,7 @@ function make_tone() {
 	return {o: beep, v: volume};
 }
 
-function down_noise(samples) {
+function down_noise(samples, f1, f2) {
 	var down_noise;
 	if (!audio) {
 		return;
@@ -862,13 +863,18 @@ function down_noise(samples) {
 	var f=audio.createBiquadFilter();
 	source.connect(f);
 	f.connect(audio.destination);
-	f.frequency.setValueAtTime(400, audio.currentTime);
-	f.frequency.linearRampToValueAtTime(0, audio.currentTime+0.25);
+	f.frequency.setValueAtTime(f1||400, audio.currentTime);
+	f.frequency.linearRampToValueAtTime(f2|0, audio.currentTime+0.25);
 	source.noteOn(0);
 	source.noteOff(audio.currentTime+0.25);
 	down_noise = {n:source, f:f};
 	return down_noise;
 }
+
+function play_death() {
+	down_noise(8000,800,200);
+}
+
 
 // start animating
 start_level(level);
