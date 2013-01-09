@@ -872,6 +872,9 @@ function down_noise(samples, f1, f2) {
 }
 
 function play_death() {
+	if (!audio) {
+		return;
+	}
 	down_noise(8000,800,200);
 }
 
