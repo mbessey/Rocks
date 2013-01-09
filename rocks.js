@@ -26,7 +26,7 @@ var held=[];
 var pressed=[];
 function keydown(event) {
 	//console.log("keydown, "+event.keyCode);
-	if (event.keyCode == 37 || event.keyCode == 38 || event.keyCode == 39 || event.keyCode == 40 || event.keyCode == 32 ) {
+	if (event.keyCode == 37 || event.keyCode == 38 || event.keyCode == 39 || event.keyCode == 40 || event.keyCode == 32 || event.keyCode == 79 ) {
 		held[event.keyCode]=true;
 		pressed[event.keyCode]=true;
     	event.preventDefault(); // Prevent the default action
@@ -36,7 +36,7 @@ function keydown(event) {
 
 function keyup(event) {
 	//console.log("keyup, "+event.keyCode);
-	if (event.keyCode == 37 || event.keyCode == 38 || event.keyCode == 39 || event.keyCode == 40 || event.keyCode == 32 ) {
+	if (event.keyCode == 37 || event.keyCode == 38 || event.keyCode == 39 || event.keyCode == 40 || event.keyCode == 32 || event.keyCode == 79 ) {
 		held[event.keyCode]=false;
     	event.preventDefault(); // Prevent the default action
 		return true;
@@ -85,9 +85,27 @@ function draw_poly(shape, filled, scale) {
 	ctx.stroke();
 }
 
+var threshold=32;
 function draw_object(o) {
+	actually_draw_object(o, o.x, o.y);
+	//TODO: Make this more-sophisticated
+	if (o.x < threshold) {
+		actually_draw_object(o, width+o.x, o.y);
+	}
+	if (o.x > width-threshold) {
+		actually_draw_object(o, o.x-width, o.y);
+	}
+	if (o.y < threshold) {
+		actually_draw_object(o, o.x, height+o.y);
+	}
+	if (o.y > height-threshold) {
+		actually_draw_object(o, o.x, +o.y-height);
+	}
+}
+
+function actually_draw_object(o, x, y) {
 	ctx.save();
-	ctx.translate(o.x, o.y);
+	ctx.translate(x, y);
 	ctx.rotate(o.phi);
 	if (o.scale) {
 		//ctx.scale(o.scale, o.scale); //scale seems pretty useless: it scales the size of the lines, too
@@ -343,7 +361,7 @@ function move(elapsed, objects) {
 		}
 	}
 	// remove dead objects
-	for (i = 0; i < dead.length; i++) {
+	for (i = dead.length-1; i >= 0; i--) {
 		objects.splice(dead[i], 1);
 	}
 }
@@ -461,7 +479,7 @@ function simulate(elapsed, rocks, ship, bullets) {
 			ship.dead=false;
 		}
 	}
-	for (var i=0; i < bullets.length; i++ ) {
+	for (var i=bullets.length-1; i >= 0; i--) {
 		var bullet = bullets[i];
 		hit = hit_test(bullet, rocks, true);
 		if (hit) {
