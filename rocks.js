@@ -59,7 +59,10 @@ ctx.webkitImageSmoothingEnabled = false;
 ctx.mozImageSmoothingEnabled = false;
 var width = canvas.width;
 var height = canvas.height;
-var audio = new AudioContext();
+var audio;
+if (window.AudioContext) {
+	audio = new AudioContext();
+}
 var score = 0;
 
 function clear_canvas() {
@@ -216,6 +219,7 @@ function draw_text(text, scale, x, y, align) {
 }
 
 function play_beep(freq, duration) {
+	if (!audio) return;
 	var beep = audio.createOscillator();
 	beep.frequency.setValueAtTime(freq, audio.currentTime);
 	beep.frequency.linearRampToValueAtTime(freq*2, audio.currentTime+duration/2);
@@ -236,6 +240,7 @@ function play_bullet_sound() {
 
 var shieldsound;
 function play_shield() {
+	if (!audio) return;
 	shieldsound = audio.createOscillator();
 	var lfo = audio.createOscillator();
 	var gain = audio.createGainNode();
