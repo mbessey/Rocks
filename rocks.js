@@ -43,6 +43,12 @@ function keyup(event) {
 	}
 }
 
+function keyspressed() {
+	var keys=pressed;
+	pressed=[];
+	return keys;
+}
+
 document.onkeydown=keydown;
 document.onkeyup=keyup;
 
@@ -372,7 +378,8 @@ function process_keys(elapsed, ship) {
 			process_keys_game(elapsed, ship);
 		}
 	} else {
-		if (held[keys.space]) {
+		var keys_pressed=keyspressed();
+		if (keys_pressed[keys.space]) {
 			start();
 		}
 	}
@@ -413,17 +420,15 @@ function process_keys_game(elapsed, ship) {
 		}
 		ship.shielded = false;
 	}
-	if ((pressed[keys.space] || held[keys.space]) && lasttime > bulletTime && num_bullets < max_bullets) {
+	var keys_pressed=keyspressed();
+	if ((keys_pressed[keys.space] || held[keys.space]) && lasttime > bulletTime && num_bullets < max_bullets) {
 		// spawn a bullet
 		bulletTime = lasttime + (1000 * bullet_interval);
 		num_bullets++;
 		spawn_bullet(ship);
 	}	
-	pressed[keys.space]=false;
-	if (held[keys.o]) {
-		show_outlines=true;
-	} else {
-		show_outlines=false;
+	if (keys_pressed[keys.o]) {
+		show_outlines = !show_outlines;
 	}
 }
 
@@ -481,7 +486,7 @@ function simulate(elapsed, rocks, ship, bullets) {
 	}
 	for (var i=bullets.length-1; i >= 0; i--) {
 		var bullet = bullets[i];
-		hit = hit_test(bullet, rocks, true);
+		hit = hit_test_point(bullet, rocks, true);
 		if (hit) {
 			play_beep(110, 0.1);
 			bullets.splice(i,1);
@@ -647,9 +652,10 @@ function start_level(level) {
 function hit_test(needle, haystack, single) {
 	var i;
 	var targets=[];
+	var needle_translated=object_to_world(needle);
 	for (i=0; i < haystack.length; i++) {
 		target = haystack[i];
-		if (intersects(object_to_world(needle), object_to_world(target))) {
+		if (intersects(needle_translated, object_to_world(target))) {
 			targets.push(target);
 			if (single) {
 				return target;
@@ -660,6 +666,15 @@ function hit_test(needle, haystack, single) {
 		return undefined;
 	}
 	return targets;
+}
+
+function hit_test_point(needle, haystack) {
+	for (var i=0; i < haystack.length; i++) {
+		target = haystack[i];
+		if (point_in_poly(needle, object_to_world(target))) {
+			return target;
+		}
+	}
 }
 
 function death() {
@@ -755,6 +770,14 @@ function start() {
 	score = 0;
 	game_state=state.playing;
 	start_level(level);
+}
+
+function death_blossom() {
+	var max_bullets=32;
+	for (var i=0; i < num_rocks; i++) {
+		myship.phi=Math.PI*2*i/max_bullets;
+		spawn_bullet(myship);
+	}
 }
 
 // start animating

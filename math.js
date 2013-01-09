@@ -1,4 +1,7 @@
+
+//TODO: Figure out why this is off by a smidge when compared to canvas context.translate/context.rotate
 function object_to_world(o) {
+	var fudge=0.5;
     var points = [];
     var cp = Math.cos(o.phi);
     var sp = Math.sin(o.phi);
@@ -10,8 +13,8 @@ function object_to_world(o) {
         if (x === undefined) {
             break;
         }
-        var nx = o.x + (x * cp - y * sp) * o.scale;
-        var ny = o.y + (x * sp + y * cp) * o.scale;
+        var nx = o.x + (x * cp - y * sp) * (o.scale+fudge);
+        var ny = o.y + (x * sp + y * cp) * (o.scale+fudge);
         points.push([nx, ny]);
     }
     return points;
@@ -53,4 +56,57 @@ function getLineIntersection(p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y) {
     }
     return null;
     // No collision 
+}
+
+function quadrant(x, y) {
+	if (x>0 && y<=0) {
+		return 1;
+	}
+	if (x>0 && y>0) {
+		return 2;
+	}
+	if (x<=0 && y>0) {
+		return 3;
+	}
+	if (x<=0 && y<=0) {
+		return 4;
+	}
+}
+
+// point-inside polygon test, winding-count
+function point_in_poly(point, poly) {
+	var count=0;
+	var p = poly[0];
+	var dx = p[0] - point.x;
+	var dy = p[1] - point.y;
+	var last_q = quadrant(dx, dy);
+	//console.log("dx, dy, q"+dx+", "+dy+", "+last_q);
+	for (var i=1; i< poly.length; i++) {
+		p = poly[i];
+		dx = p[0] - point.x;
+		dy = p[1] - point.y;
+		var q = quadrant(dx, dy);
+		//console.log("dx, dy, q"+dx+", "+dy+", "+q);
+		var d=(q-last_q);
+		if (d==-3) {
+			d=1;
+		} else if (d==3) {
+			d=-1;
+		}
+		//console.log(d);
+		count += d;
+		last_q=q;
+	}
+	//console.log(count);
+	return (count==4);
+}
+
+function point_inside_test_unit(p) {
+	if (!p) {
+		p={x:0, y:0};
+	}
+	var poly=[
+		[-1, -1], [1, -1], [1, 1], [-1, 1],[-1, -1]
+	];
+	console.log(point_inside(p, poly));
 }
