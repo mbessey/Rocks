@@ -400,13 +400,19 @@ function process_keys_game(elapsed, ship) {
 	}
 	if (held[keys.up]) {
 		//thrust
+		if (!ship.thrusting) {
+			thrust_start(10000);
+		}
+		ship.thrusting=true;
 		var dy = -Math.cos(ship.phi);
 		var dx = Math.sin(ship.phi);
 		ship.vy+=(dy*elapsed/5);
 		ship.vx+=(dx*elapsed/5);
-		ship.thrusting=true;
 	} else {
 		// "friction" in space isn't realistic, but the original did it, so...
+		if (ship.thrusting) {
+			thrust_stop();
+		}
 		ship.thrusting=false;
 		ship.vx *= 0.995;
 		ship.vy *= 0.995;
@@ -688,6 +694,9 @@ function death() {
 	myship.vx=0;
 	myship.vy=0;
 	myship.vphi=0;
+	if (myship.thrusting) {
+		thrust_stop();
+	}
 	spawn_debris(myship, myship.fillStyle);
 	if (lives === 0) {
 		game_state = state.over;
@@ -783,6 +792,41 @@ function death_blossom() {
 		myship.phi=Math.PI*2*i/max_bullets;
 		spawn_bullet(myship);
 	}
+}
+
+var noise;
+function thrust_start(samples) {
+	if (!samples) {
+		samples=1024;
+	}
+	var buf=audio.createBuffer(1, samples, audio.sampleRate);
+	var a = buf.getChannelData(0);
+	for (var i=0; i<a.length; i++) {
+		a[i]=Math.random()*2-1;
+	}
+	var source=audio.createBufferSource();
+	source.buffer=buf;
+	source.loop=true;
+	var f=audio.createBiquadFilter();
+	source.connect(f);
+	noise={n:source, f:f}
+	f.connect(audio.destination);
+	source.noteOn(0);
+	return noise;
+}
+
+function thrust_stop() {
+	noise.n.noteOff(0);
+}
+
+function make_tone() {
+	var beep=audio.createOscillator();
+	var volume=audio.createGainNode();
+	volume.gain.value=0.5;
+	beep.connect(volume);
+	volume.connect(audio.destination);
+	beep.noteOn(0);
+	return {o: beep, v: volume};
 }
 
 // start animating
