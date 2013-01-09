@@ -219,15 +219,15 @@ function draw_text(text, scale, x, y, align) {
 }
 
 function play_beep(freq, duration) {
-	if (!audio) return;
+	if (!audio) {
+		return;
+	}
 	var beep = audio.createOscillator();
 	beep.frequency.setValueAtTime(freq, audio.currentTime);
-	beep.frequency.linearRampToValueAtTime(freq*2, audio.currentTime+duration/2);
-	beep.frequency.linearRampToValueAtTime(freq, audio.currentTime+duration);
+	beep.frequency.linearRampToValueAtTime(freq-100, audio.currentTime+duration);
 	var  vol = audio.createGainNode();
-	vol.gain.setValueAtTime(0, audio.currentTime);
-	vol.gain.linearRampToValueAtTime(1, audio.currentTime+duration/2);
-	vol.gain.linearRampToValueAtTime(0 , audio.currentTime+duration);
+	vol.gain.setValueAtTime(0.25, audio.currentTime);
+	vol.gain.linearRampToValueAtTime(0.1 , audio.currentTime+duration);
 	beep.connect(vol);
 	vol.connect(audio.destination);
 	beep.noteOn(0);
@@ -235,17 +235,19 @@ function play_beep(freq, duration) {
 }
 
 function play_bullet_sound() {
-	play_beep(220, 0.1);
+	play_beep(440, 0.1);
 }
 
 var shieldsound;
 function play_shield() {
-	if (!audio) return;
+	if (!audio) {
+		return;
+	}
 	shieldsound = audio.createOscillator();
 	var lfo = audio.createOscillator();
 	var gain = audio.createGainNode();
 	var gain2 = audio.createGainNode();
-	gain2.gain.value=.5;
+	gain2.gain.value=0.5;
 	shieldsound.frequency.value = 440;
 	shieldsound.connect(gain2);
 	gain2.connect(audio.destination);
@@ -260,6 +262,9 @@ function play_shield() {
 }
 
 function stop_shield() {
+	if (!audio) {
+		return;
+	}
 	shieldsound.noteOff(0);
 }
 
@@ -461,11 +466,12 @@ function simulate(elapsed, rocks, ship, bullets) {
 	move(elapsed, bullets);
 	move(elapsed, particles);
 	var hit;
+	var i;
 	if (!ship.dead) {
 		if (ship.shielded) {
 			hit = hit_test(shield, rocks);
 			if (hit) {
-				for (var i=0; i < hit.length; i++) {
+				for (i=0; i < hit.length; i++) {
 					var rock = hit[i];
 					var phi = Math.atan2(ship.x-rock.x, ship.y-rock.y);
 					var vx = ship.vx;
@@ -495,11 +501,11 @@ function simulate(elapsed, rocks, ship, bullets) {
 			ship.dead=false;
 		}
 	}
-	for (var i=bullets.length-1; i >= 0; i--) {
+	for (i = bullets.length-1; i >= 0; i--) {
 		var bullet = bullets[i];
 		hit = hit_test_point(bullet, rocks, true);
 		if (hit) {
-			play_beep(110, 0.1);
+			down_noise();
 			bullets.splice(i,1);
 			bullet.onRemoved();
 			rocks.splice(rocks.indexOf(hit), 1);
@@ -522,7 +528,7 @@ function spawn_rocks(howmany, x, y, size, speed, radius, converge) {
 		var dx = Math.sin(phi);
 		var vx;
 		var vy;
-		if (converge && n==0) { // Fix: First rock should always be aimed at the player, not the center...
+		if (converge && n === 0) { // Fix: First rock should always be aimed at the player, not the center...
 			vx = -dx*speed;
 			vy = -dy*speed;
 		} else {
@@ -552,7 +558,7 @@ function spawn_rocks(howmany, x, y, size, speed, radius, converge) {
 				if (this.scale > 2) {
 					spawn_rocks(2, this.x, this.y, this.scale/2, v_max/this.scale*(Math.random()+0.5), 10, false);
 				}
-				if (num_rocks == 0) {
+				if (num_rocks === 0) {
 					level++;
 					start_level(level);
 				}
@@ -563,7 +569,7 @@ function spawn_rocks(howmany, x, y, size, speed, radius, converge) {
 }
 
 function check_score(score) {
-	if (score %1000 == 0) {
+	if (score %1000 === 0) {
 		lives++;
 		spawn_tag(myship, "1UP");
 	}
@@ -796,6 +802,9 @@ function death_blossom() {
 
 var noise;
 function thrust_start(samples) {
+	if (!audio) {
+		return;
+	}
 	if (!samples) {
 		samples=1024;
 	}
@@ -809,17 +818,22 @@ function thrust_start(samples) {
 	source.loop=true;
 	var f=audio.createBiquadFilter();
 	source.connect(f);
-	noise={n:source, f:f}
+	noise={n:source, f:f};
 	f.connect(audio.destination);
 	source.noteOn(0);
 	return noise;
 }
 
 function thrust_stop() {
-	noise.n.noteOff(0);
+	if (noise) {
+		noise.n.noteOff(0);
+	}
 }
 
 function make_tone() {
+	if (!audio) {
+		return;
+	}
 	var beep=audio.createOscillator();
 	var volume=audio.createGainNode();
 	volume.gain.value=0.5;
@@ -827,6 +841,33 @@ function make_tone() {
 	volume.connect(audio.destination);
 	beep.noteOn(0);
 	return {o: beep, v: volume};
+}
+
+function down_noise(samples) {
+	var down_noise;
+	if (!audio) {
+		return;
+	}
+	if (!samples) {
+		samples=10000;
+	}
+	var buf=audio.createBuffer(1, samples, audio.sampleRate);
+	var a = buf.getChannelData(0);
+	for (var i=0; i<a.length; i++) {
+		a[i]=Math.random()*2-1;
+	}
+	var source=audio.createBufferSource();
+	source.buffer=buf;
+	source.loop=true;
+	var f=audio.createBiquadFilter();
+	source.connect(f);
+	f.connect(audio.destination);
+	f.frequency.setValueAtTime(400, audio.currentTime);
+	f.frequency.linearRampToValueAtTime(0, audio.currentTime+0.25);
+	source.noteOn(0);
+	source.noteOff(audio.currentTime+0.25);
+	down_noise = {n:source, f:f};
+	return down_noise;
 }
 
 // start animating
