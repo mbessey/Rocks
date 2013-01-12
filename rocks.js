@@ -119,9 +119,15 @@ function actually_draw_object(o, x, y) {
 	if (o.scale) {
 		//ctx.scale(o.scale, o.scale); //scale seems pretty useless: it scales the size of the lines, too
 	}
-	ctx.lineWidth = o.lineWidth;
-	ctx.fillStyle = o.fillStyle;
-	ctx.strokeStyle = o.strokeStyle;
+	if (o.lineWidth) {
+		ctx.lineWidth = o.lineWidth;
+	}
+	if (o.fillStyle) {
+		ctx.fillStyle = o.fillStyle;
+	}
+	if (o.strokeStyle) {
+		ctx.strokeStyle = o.strokeStyle;
+	}
 	if (o.shape.length >0) {
 		draw_poly(o.shape, o.filled, o.scale|1);
 	}
@@ -795,7 +801,7 @@ function start() {
 
 function death_blossom() {
 	var max_bullets=32;
-	for (var i=0; i < num_rocks; i++) {
+	for (var i=0; i < max_bullets; i++) {
 		myship.phi=Math.PI*2*i/max_bullets;
 		spawn_bullet(myship);
 	}
