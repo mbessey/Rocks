@@ -20,17 +20,20 @@ var keys={
 	right: 39,
 	down: 40,
 	space: 32,
-	o: 79
+	o: 79,
+	p: 'P'.charCodeAt(0)
 };
 var held=[];
 var pressed=[];
 function keydown(event) {
 	//console.log("keydown, "+event.keyCode);
-	if (event.keyCode == 37 || event.keyCode == 38 || event.keyCode == 39 || event.keyCode == 40 || event.keyCode == 32 || event.keyCode == 79 ) {
-		held[event.keyCode]=true;
-		pressed[event.keyCode]=true;
-    	event.preventDefault(); // Prevent the default action
-		return true;
+	for (var key in keys) {
+		if (event.keyCode == keys[key]) {
+			held[event.keyCode]=true;
+			pressed[event.keyCode]=true;
+	    	event.preventDefault(); // Prevent the default action
+			return true;
+		}
 	}
 }
 
@@ -224,6 +227,20 @@ function draw_text(text, scale, x, y, align) {
 	ctx.restore();
 }
 
+function draw_bottom_controls() {
+	var canvas = document.getElementById("bottom_controls");
+	var ctx = canvas.getContext('2d');		
+	ctx.save();
+	ctx.restore();
+}
+
+function draw_right_controls() {
+	var canvas = document.getElementById("right_controls");
+	var ctx = canvas.getContext('2d');		
+	ctx.save();
+	ctx.restore();
+}
+
 function play_beep(freq, duration) {
 	if (!audio) {
 		return;
@@ -232,7 +249,7 @@ function play_beep(freq, duration) {
 	beep.frequency.setValueAtTime(freq, audio.currentTime);
 	beep.frequency.linearRampToValueAtTime(freq-100, audio.currentTime+duration);
 	var  vol = audio.createGainNode();
-	vol.gain.setValueAtTime(0.25, audio.currentTime);
+	vol.gain.setValueAtTime(0.1, audio.currentTime);
 	vol.gain.linearRampToValueAtTime(0.1 , audio.currentTime+duration);
 	beep.connect(vol);
 	vol.connect(audio.destination);
@@ -250,10 +267,11 @@ function play_shield() {
 		return;
 	}
 	shieldsound = audio.createOscillator();
+	shieldsound.type=shieldsound.TRIANGLE;
 	var lfo = audio.createOscillator();
 	var gain = audio.createGainNode();
 	var gain2 = audio.createGainNode();
-	gain2.gain.value=0.5;
+	gain2.gain.value=0.08;
 	shieldsound.frequency.value = 440;
 	shieldsound.connect(gain2);
 	gain2.connect(audio.destination);
@@ -401,11 +419,17 @@ function process_keys(elapsed, ship) {
 	}
 }
 
+var phi_max = 4;
+var phi_d = 2;
 function process_keys_game(elapsed, ship) {
 	if (held[keys.left]) {
-		ship.vphi = -4;
+		if (ship.vphi > -phi_max) {
+			ship.vphi -= phi_d;
+		}
 	} else if (held[keys.right]) {
-		ship.vphi = 4;
+		if (ship.vphi < phi_max) {
+			ship.vphi += phi_d;
+		}
 	} else {
 		ship.vphi = 0;
 	}
@@ -452,6 +476,9 @@ function process_keys_game(elapsed, ship) {
 	if (keys_pressed[keys.o]) {
 		show_outlines = !show_outlines;
 	}
+	if (keys_pressed[keys.p]) {
+		game_state = state.paused;
+	}
 }
 
 var lasttime;
@@ -480,12 +507,13 @@ function simulate(elapsed, rocks, ship, bullets) {
 				for (i=0; i < hit.length; i++) {
 					var rock = hit[i];
 					var phi = Math.atan2(ship.x-rock.x, ship.y-rock.y);
-					var vx = ship.vx;
-					var vy = ship.vy;
-					ship.vx = rock.vx;
-					ship.vy = rock.vy;
-					rock.vx=vx;
-					rock.vy=vy;
+					var v = 10000/((ship.x-rock.x)*(ship.x-rock.x)+(ship.y-rock.y)*(ship.y-rock.y));
+					var vx = v*Math.sin(phi);
+					var vy = -v*Math.cos(phi);
+					ship.vx += vx * ship.scale*ship.scale/(1+ship.scale*ship.scale);
+					ship.vy -= vy * ship.scale*ship.scale/(1+ship.scale*ship.scale);
+					rock.vx -= vx * 1/(1+ship.scale*ship.scale);
+					rock.vy += vy * 1/(1+ship.scale*ship.scale);
 				}
 			}
 			ship.shieldRemaining -= (elapsed/1000);
@@ -574,9 +602,12 @@ function spawn_rocks(howmany, x, y, size, speed, radius, converge) {
 	num_rocks += howmany;
 }
 
+var next_ship=1000;
 function check_score(score) {
-	if (score %1000 === 0) {
+	
+	if (score > next_ship) {
 		lives++;
+		next_ship *= 2;
 		spawn_tag(myship, "1UP");
 	}
 }
@@ -597,6 +628,13 @@ function draw_gameover(framecount) {
 	draw_text("Game Over", 2, width/2, 132, "center");
 	if (framecount < 20 || framecount > 40) {
 		draw_text("Press space to play again", 2, width/2, 200, "center");
+	}
+}
+
+function draw_paused(framecount) {
+	draw_text("Paused", 2, width/2, 132, "center");
+	if (framecount < 20 || framecount > 40) {
+		draw_text("Press p to resume", 2, width/2, 200, "center");
 	}
 }
 
@@ -639,6 +677,15 @@ function frame(timestamp) {
 		draw_title(framecount);
 	} else if (game_state == state.over) {
 		draw_gameover(framecount);
+	} else if (game_state == state.paused) {
+		var keysDown = keyspressed();
+		if (keysDown[keys.p]) {
+			lasttime = timestamp;
+			game_state = state.playing;
+		}
+		draw_paused(framecount);
+		requestAnimationFrame(frame);
+		return;
 	}
 	if (lasttime === undefined) {
 		elapsed = 0;
@@ -784,7 +831,9 @@ var mythrust= {
 var state = {
 	attract: 0,
 	playing: 1,
-	over: 2
+	over: 2,
+	paused: 3,
+	waiting: 4
 };
 var game_state=state.attract;
 var lives = 3;
@@ -884,6 +933,15 @@ function play_death() {
 	down_noise(8000,800,200);
 }
 
+//enable touch controls
+if (window.ontouchstart) {
+	var bottom = document.getElementById("bottom_controls");
+	var right = document.getElementById("right_controls");
+	bottom.style.display="block";
+	right.style.display="block";
+	draw_bottom_controls();
+	draw_right_controls();
+}
 
 // start animating
 start_level(level);

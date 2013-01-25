@@ -1,5 +1,24 @@
-.unused {
-	width:500px;
-	height: 500px;
+#game {
+}
+
+#bottom_controls {
+	position: absolute;
+	top:  496px;
+	left: 8px;
+}
+
+#right_controls {
+	position: absolute;
+	top: 8px;
+	left: 656px;
+}
+
+body {
+	//background-color: #282828;
+	background-color: #404040;
+}
+
+.tty {
+	border-radius: 8px;
 	background-color: black;
 }

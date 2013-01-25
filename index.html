@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+	<meta name="apple-mobile-web-app-capable" content="yes" />
 	<link rel="stylesheet" type="text/css" href="rocks.css">
 	<title>Rocks! - a dead-simple HTML Canvas game</title>
 </head>
 <body>
-	<canvas id="game" width="640" height="480">If you can see this, upgrade to a newer browser!</canvas>
+	<canvas class="tty" id="game" width="640" height="480">If you can see this, upgrade to a newer browser!</canvas>
+	<canvas class="tty" id="bottom_controls" width="640" height="100" style="display: none"></canvas>	
+	<canvas class="tty" id="right_controls" width="100" height="480" style="display: none"></canvas>
 	<script src="math.js"></script>
 	<script src="font.js"></script>
 	<script src="geometry.js"></script>
