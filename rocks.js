@@ -292,7 +292,7 @@ function stop_shield() {
 	shieldsound.noteOff(0);
 }
 
-var bullet_life = 1;
+var bullet_life = 1.5;
 function spawn_bullet(ship) {
 	var bullet_v = 200;
 	var distance_from_ship=6;
@@ -605,7 +605,7 @@ function spawn_rocks(howmany, x, y, size, speed, radius, converge) {
 var next_ship=1000;
 function check_score(score) {
 	
-	if (score > next_ship) {
+	if (score >= next_ship) {
 		lives++;
 		next_ship *= 2;
 		spawn_tag(myship, "1UP");
@@ -622,6 +622,7 @@ function draw_title(framecount) {
 	draw_text("Left and Right arrows turn", 2, width/2, 270, "center");
 	draw_text("Up arrow fires engines", 2, width/2, 300, "center");
 	draw_text("Down arrow activates shield", 2, width/2, 330, "center");
+	draw_text("Press P to pause", 2, width/2, 360, "center");
 }
 
 function draw_gameover(framecount) {
@@ -684,8 +685,6 @@ function frame(timestamp) {
 			game_state = state.playing;
 		}
 		draw_paused(framecount);
-		requestAnimationFrame(frame);
-		return;
 	}
 	if (lasttime === undefined) {
 		elapsed = 0;
@@ -693,7 +692,9 @@ function frame(timestamp) {
 	} else {
 		elapsed = (timestamp - lasttime);
 	}
-	simulate(elapsed, rocks, myship, bullets);
+	if (game_state !== state.paused) {
+		simulate(elapsed, rocks, myship, bullets);
+	}
 	draw_frame_counter(fps, min_fps, max_fps);
 	lasttime = timestamp;
 	if (framecount++ > 60) {
@@ -845,6 +846,7 @@ function start() {
 	level = 0;
 	score = 0;
 	game_state=state.playing;
+	held[keys.space]=false;
 	start_level(level);
 }
 
