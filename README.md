@@ -13,7 +13,9 @@ Left & Right arrow keys to turn, up arrow to fire thrusters, space to fire, down
 * Sound occasionally flakes out - weird glitches, or the engine sound sticking on.
 
 **Missing features**
-No enemies. Hopefully will have at least one by end of the month.
+* Enemies. Hopefully will have at least one by end of the month.
+* Needs touch controls for iOS & Android browsers
+* Offline mode
 
 **FAQ**
 
