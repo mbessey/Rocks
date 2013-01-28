@@ -10,8 +10,10 @@ Left & Right arrow keys to turn, up arrow to fire thrusters, space to fire, down
 
 **Known bugs**
 
-* Objects disappear from one side of the screen and reappear on the other side, instead of "wrapping around"
-* Hit detection is *still* not quite right - there's a difference between the canvas rendering, and the coordinate transformation for the hit-detect polygons.
+* Sound occasionally flakes out - weird glitches, or the engine sound sticking on.
+
+**Missing features**
+No enemies. Hopefully will have at least one by end of the month.
 
 **FAQ**
 
