@@ -14,6 +14,23 @@
   window.AudioContext = audioContext;
 })();
 
+var scores={};
+var fb = new Firebase('https://scores.firebaseio.com/rocks');
+var query = fb.limit(10);
+query.on('child_added', function(snapshot, prevChildName) {
+	var name = snapshot.name();
+	var score = snapshot.getPriority();
+	scores[name] = {score:score};
+});
+query.on('child_removed', function(snapshot) {
+	var name = snapshot.name();
+	delete scores[name];
+});
+// could do this, but might as well do it one update at a time
+/*query.on("value", function(snapshot) {
+	console.log("New value: "+snapshot.val());
+});
+*/
 var keys={
 	left: 37,
 	up: 38,
@@ -524,14 +541,14 @@ function simulate(elapsed, rocks, ship, bullets) {
 		} else {
 			hit = hit_test(ship, rocks, true);
 			if (hit) {
-				death();
 				rocks.splice(rocks.indexOf(hit), 1);
 				hit.onRemoved();
+				death();
 			}
 		}
 	} else {
 		if (lasttime > ship.returnAfter && game_state == state.playing && center_safe()) {
-			reset_ship();
+			ship=reset_ship();
 			ship.dead=false;
 		}
 	}
@@ -625,10 +642,34 @@ function draw_title(framecount) {
 	draw_text("Press P to pause", 2, width/2, 360, "center");
 }
 
+function sorted_scores(scores) {
+	var result=[];
+	var names = Object.keys(scores);
+	for (var i=0; i < names.length; i++) {
+		result.push(scores[names[i]]);
+	}
+	result.sort(function(a, b) {
+		if (a.score < b.score) {
+			return 1;
+		} else {
+			return -1;
+		}
+		return 0;
+	});
+	return result;
+}
+
 function draw_gameover(framecount) {
-	draw_text("Game Over", 2, width/2, 132, "center");
+	draw_text("Game Over", 2, width/2, 70, "center");
 	if (framecount < 20 || framecount > 40) {
-		draw_text("Press space to play again", 2, width/2, 200, "center");
+		draw_text("Press space to play again", 2, width/2, 110, "center");
+	}
+	draw_text("High Scores", 2, width/2, 170, "center");
+	var s = sorted_scores(scores);
+	for (var i=0; i<s.length; i++) {
+		var name = s[i].name || "???";
+		var line = name+" "+s[i].score;
+		draw_text(line, 2, width/2, 194+24*i, "center");
 	}
 }
 
@@ -761,6 +802,12 @@ function death() {
 	spawn_debris(myship, myship.fillStyle);
 	if (lives === 0) {
 		game_state = state.over;
+		if (score > high_score) {
+			//TODO: Make a big deal about the high score, and ask for a name
+			high_score = score;
+		}
+		var ref = fb.push();
+		ref.setWithPriority({score: score, timestamp: Date.now()}, score);
 	} else {
 		myship.returnAfter=lasttime+1500; // return after 1.5 second
 	}
@@ -798,6 +845,7 @@ function reset_ship() {
 		scale: 2,
 		shieldRemaining: 5
 	};
+	return myship;
 }
 
 function center_safe() {
@@ -946,6 +994,7 @@ if (window.ontouchstart) {
 }
 
 // start animating
+var high_score=0;
 start_level(level);
 myship.dead=true;
 requestAnimationFrame(frame);
