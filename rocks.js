@@ -292,7 +292,6 @@ function stop_shield() {
 	shieldsound.noteOff(0);
 }
 
-var bullet_life = 1.5;
 function spawn_bullet(ship) {
 	var bullet_v = 200;
 	var distance_from_ship=6;
@@ -486,6 +485,7 @@ var bulletTime = -1;
 var bullet_interval = 0.2;
 var num_bullets = 0;
 var max_bullets = 20;
+var bullet_life = 1.5;
 var num_rocks=0;
 function simulate(elapsed, rocks, ship, bullets) {
 	move(elapsed, rocks);
