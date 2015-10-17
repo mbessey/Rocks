@@ -265,13 +265,13 @@ function play_beep(freq, duration) {
 	var beep = audio.createOscillator();
 	beep.frequency.setValueAtTime(freq, audio.currentTime);
 	beep.frequency.linearRampToValueAtTime(freq-100, audio.currentTime+duration);
-	var  vol = audio.createGainNode();
+	var  vol = audio.createGain();
 	vol.gain.setValueAtTime(0.1, audio.currentTime);
 	vol.gain.linearRampToValueAtTime(0.1 , audio.currentTime+duration);
 	beep.connect(vol);
 	vol.connect(audio.destination);
-	beep.noteOn(0);
-	beep.noteOff(audio.currentTime+duration);
+	beep.start(0);
+	beep.stop(audio.currentTime+duration);
 }
 
 function play_bullet_sound() {
@@ -286,8 +286,8 @@ function play_shield() {
 	shieldsound = audio.createOscillator();
 	shieldsound.type=shieldsound.TRIANGLE;
 	var lfo = audio.createOscillator();
-	var gain = audio.createGainNode();
-	var gain2 = audio.createGainNode();
+	var gain = audio.createGain();
+	var gain2 = audio.createGain();
 	gain2.gain.value=0.08;
 	shieldsound.frequency.value = 440;
 	shieldsound.connect(gain2);
@@ -298,15 +298,15 @@ function play_shield() {
 
 	gain.gain.value=100;
 	gain.connect(shieldsound.detune);
-	lfo.noteOn(0);
-	shieldsound.noteOn(0);
+	lfo.start(0);
+	shieldsound.start(0);
 }
 
 function stop_shield() {
 	if (!audio) {
 		return;
 	}
-	shieldsound.noteOff(0);
+	shieldsound.stop(0);
 }
 
 function spawn_bullet(ship) {
@@ -926,13 +926,13 @@ function thrust_start(samples) {
 	source.connect(f);
 	noise={n:source, f:f};
 	f.connect(audio.destination);
-	source.noteOn(0);
+	source.start(0);
 	return noise;
 }
 
 function thrust_stop() {
 	if (noise) {
-		noise.n.noteOff(0);
+		noise.n.stop(0);
 	}
 }
 
@@ -941,11 +941,11 @@ function make_tone() {
 		return;
 	}
 	var beep=audio.createOscillator();
-	var volume=audio.createGainNode();
+	var volume=audio.createGain();
 	volume.gain.value=0.5;
 	beep.connect(volume);
 	volume.connect(audio.destination);
-	beep.noteOn(0);
+	beep.start(0);
 	return {o: beep, v: volume};
 }
 
@@ -970,8 +970,8 @@ function down_noise(samples, f1, f2) {
 	f.connect(audio.destination);
 	f.frequency.setValueAtTime(f1||400, audio.currentTime);
 	f.frequency.linearRampToValueAtTime(f2|0, audio.currentTime+0.25);
-	source.noteOn(0);
-	source.noteOff(audio.currentTime+0.25);
+	source.start(0);
+	source.stop(audio.currentTime+0.25);
 	down_noise = {n:source, f:f};
 	return down_noise;
 }
