@@ -5,7 +5,7 @@ Rocks! - an HTML canvas implementation of Asteroid
 I love the old vector-graphics Atari arcade games of yore, so I figured I'd start out with one of the simplest ones, so that I can concentrate on making a reasonably performing engine as a basis for more-complex games in the next couple of months.
 
 **How to play**
-
+[Play Here!](https://mbessey.github.io/Rocks/)
 Left & Right arrow keys to turn, up arrow to fire thrusters, space to fire, down for shield. Don't hit the rocks, and watch out for UFOs.
 
 **Known bugs**
